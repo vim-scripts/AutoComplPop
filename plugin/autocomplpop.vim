@@ -1,15 +1,14 @@
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" autocomplpop.vim - Automatically open popup menu for completion
-" Last Change:  02-May-2007.
+" autocomplpop.vim - Automatically open popup menu for completion.
+" Last Change:  09-May-2007.
 " Author:       Takeshi Nishida <isskr@is.skr.jp>
-" Version:      0.1, for Vim 7.0
+" Version:      0.2, for Vim 7.0
 " Licence:      MIT Licence
 "
 " Description:  In insert mode, open popup menu for completion when input several 
 "               charactors. This plugin works by mapping alphanumeric characters
 "               and underscore.
-"  
 "
 " Installation: Drop this file in your plugin directory.
 "               Set as below:
@@ -23,6 +22,11 @@
 "                   Stop automatic popup menu
 "
 " Options:      See section setting global value below.
+"
+" ChangeLog:    0.2: When completion matches are not found, insert CTRL-E to stop completion.
+"                    Clear the echo area.
+"                    Fixed the problem in case of dividing words by symbols, popup menu is not opened.
+"               0.1: First release.
 "
 "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -70,11 +74,6 @@ if !exists('g:AutoComplPop_PopupCmd')
     let g:AutoComplPop_PopupCmd = "\<C-N>"
 endif
 
-" Insert this next to g:AutoComplPop_PopupCmd
-if !exists('g:AutoComplPop_AdditionalCmd') 
-    let g:AutoComplPop_AdditionalCmd = "\<C-R>=pumvisible() ? \"\\<C-N>\\<C-P>\" : \"\"\<CR>"
-endif
-
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
@@ -88,23 +87,43 @@ let s:MapList = []
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+function! g:AutoComplPop_InsertPostProcessing(restore)
+    " Clear the echo area.
+    echo ""
+
+    if pumvisible()
+        if a:restore
+            return "\<C-N>\<C-P>" " Restore to the original
+        endif
+
+        return ""
+    endif
+
+    return "\<C-E>" " End completion
+endfunction
+
+
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
 function! <SID>InsertAndPopup(input)
     if pumvisible()
-        echo 'pumvisible() == TRUE'
-        return a:input
+        return a:input . "\<C-R>=g:AutoComplPop_InsertPostProcessing(0)\<CR>"
     endif
 
     let last_word = matchstr(strpart(getline('.'), 0, col('.') - 1) . a:input, '^.*\zs\<\k\{-}$')
     let last_word_len = len(last_word)
     if last_word_len < g:AutoComplPop_MinLength || last_word_len > g:AutoComplPop_MaxLength
-        return a:input
+        " End Completion in case of dividing words by symbols. (e.g. 'for(int', 'value_a==value_b')
+        return a:input . "\<Space>\<C-H>"
     endif
 
-    return a:input . g:AutoComplPop_PopupCmd . g:AutoComplPop_AdditionalCmd
+    return a:input . g:AutoComplPop_PopupCmd . "\<C-R>=g:AutoComplPop_InsertPostProcessing(1)\<CR>"
 endfunction
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
 function! <SID>Enable()
     if !empty(s:MapList)
         call <SID>Disable()
@@ -143,6 +162,7 @@ endfunction
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
 function! <SID>Disable()
     if !empty(s:MapList)
         for item in s:MapList
