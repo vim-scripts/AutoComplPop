@@ -3,7 +3,7 @@
 " autocomplpop.vim - Automatically open popup menu for completion.
 " Last Change:  09-May-2007.
 " Author:       Takeshi Nishida <isskr@is.skr.jp>
-" Version:      0.2, for Vim 7.0
+" Version:      0.3, for Vim 7.0
 " Licence:      MIT Licence
 "
 " Description:  In insert mode, open popup menu for completion when input several 
@@ -12,9 +12,8 @@
 "
 " Installation: Drop this file in your plugin directory.
 "               Set as below:
-"                   :set completeopt+=menuone " Needed
-"                   :set complete-=i          " Recommended
-"                   :set complete-=t          " Recommended
+"                   :set complete-=i " Recommended
+"                   :set complete-=t " Recommended
 "
 " Usage:        :AutoComplPopEnable
 "                   Activate automatic popup menu
@@ -23,18 +22,24 @@
 "
 " Options:      See section setting global value below.
 "
-" ChangeLog:    0.2: When completion matches are not found, insert CTRL-E to stop completion.
+" ChangeLog:    0.3: Fixed the problem that the original text is not restored if 
+"                    'longest' is not set in 'completeopt'. Now the plugin works 
+"                    whether or not 'longest' is set in 'completeopt', and also
+"                    'menuone'.
+"               0.2: When completion matches are not found, insert CTRL-E to stop
+"                    completion.
 "                    Clear the echo area.
-"                    Fixed the problem in case of dividing words by symbols, popup menu is not opened.
+"                    Fixed the problem in case of dividing words by symbols, popup
+"                    menu is not opened.
 "               0.1: First release.
 "
 "
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-if exists("b:loaded_AutoComplPop")
+if exists("loaded_AutoComplPop")
     finish
 endif
-let b:loaded_AutoComplPop = 1
+let loaded_AutoComplPop = 1
 
 
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -89,18 +94,22 @@ let s:MapList = []
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 function! g:AutoComplPop_InsertPostProcessing(restore)
-    " Clear the echo area.
     echo ""
 
-    if pumvisible()
-        if a:restore
-            return "\<C-N>\<C-P>" " Restore to the original
-        endif
-
-        return ""
+    if !a:restore
+        let restore_cmd = ""
+    elseif &completeopt =~ '\clongest'
+        let restore_cmd = "\<C-N>\<C-P>" " restore to original text
+    else
+        let restore_cmd = "\<C-P>"       " restore to original text
     endif
 
-    return "\<C-E>" " End completion
+    if pumvisible()
+        return restore_cmd
+    endif
+
+    return restore_cmd . "\<Space>\<C-H>" " End completion
+
 endfunction
 
 
@@ -115,7 +124,7 @@ function! <SID>InsertAndPopup(input)
     let last_word_len = len(last_word)
     if last_word_len < g:AutoComplPop_MinLength || last_word_len > g:AutoComplPop_MaxLength
         " End Completion in case of dividing words by symbols. (e.g. 'for(int', 'value_a==value_b')
-        return a:input . "\<Space>\<C-H>"
+        return a:input . "\<C-R>=g:AutoComplPop_InsertPostProcessing(0)\<CR>"
     endif
 
     return a:input . g:AutoComplPop_PopupCmd . "\<C-R>=g:AutoComplPop_InsertPostProcessing(1)\<CR>"
