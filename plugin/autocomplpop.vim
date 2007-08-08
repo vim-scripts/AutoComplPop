@@ -1,59 +1,66 @@
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " autocomplpop.vim - Automatically open the popup menu for completion.
-" Last Change:  14-May-2007.
-" Author:       Takeshi Nishida <isskr@is.skr.jp>
-" Version:      0.4, for Vim 7.0
+" Last Change:  08-Aug-2007.
+" Author:       Takeshi Nishida <ns9tks(at)ns9tks.net>
+" Version:      1.0, for Vim 7.0
 " Licence:      MIT Licence
 "
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Description:
 "     In insert mode, open the popup menu for completion when input several
 "     charactors. This plugin works by mapping alphanumeric characters and
 "     underscore.
 "
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Installation:
 "     Drop this file in your plugin directory.
 "
-"     Recommended Settings
-"         :set completeopt+=menuone
-"         :set complete-=i
-"         :set complete-=t
 "
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Usage:
 "     :AutoComplPopEnable
 "         Activate automatic popup menu
 "     :AutoComplPopDisable
 "         Stop automatic popup menu
+"     :AutoComplPopLock
+"         Suspend
+"     :AutoComplPopUnlock
+"         Resume after :AutoComplPopLock
 "
-"     Map as below and can easily insert the first match with <Enter>.
-"         :inoremap <expr> <CR> pumvisible() ? "\<C-Y>" : "\<CR>"
 "
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Options:
 "     See a section setting global value below.
 "
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " ChangeLog:
+"     1.0:
+"         g:AutoComplPop_LoadAndEnable option for a startup activation is
+"         added.
+"         AutoComplPopLock command and AutoComplPopUnlock command are added to
+"         suspend and resume.
+"         'completeopt' and 'complete' options are changed temporarily while
+"         completing by this script.
 "     0.4:
-"         The first match are selected when the popup menu is Opened. You can insert
-"         the first match with CTRL-Y.
+"         The first match are selected when the popup menu is Opened. You can
+"         insert the first match with CTRL-Y.
 "     0.3:
-"         Fixed the problem that the original text is not restored if 'longest' is
-"         not set in 'completeopt'. Now the plugin works whether or not 'longest' is
-"         set in 'completeopt', and also 'menuone'.
+"         Fixed the problem that the original text is not restored if
+"         'longest' is not set in 'completeopt'. Now the plugin works whether
+"         or not 'longest' is set in 'completeopt', and also 'menuone'.
 "     0.2:
-"         When completion matches are not found, insert CTRL-E to stop completion.
-"         Clear the echo area. Fixed the problem in case of dividing words by
-"         symbols, popup menu is not opened.
+"         When completion matches are not found, insert CTRL-E to stop
+"         completion.
+"         Clear the echo area.
+"         Fixed the problem in case of dividing words by symbols, popup menu
+"         is not opened.
 "     0.1:
 "         First release.
 "
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Thanks:       vimtip #1386
 "
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 if exists("loaded_AutoComplPop")
     finish
@@ -61,26 +68,20 @@ endif
 let loaded_AutoComplPop = 1
 
 
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-" Map lowercase letters as trigger to open the popup menu.
-if !exists('g:AutoComplPop_MapLower')
-    let g:AutoComplPop_MapLower = 1
-endif
-
-" Map uppercase letters as trigger to open the popup menu.
-if !exists('g:AutoComplPop_MapUpper')
-    let g:AutoComplPop_MapUpper = 1
-endif
-
-" Map digits as trigger to open the popup menu.
-if !exists('g:AutoComplPop_MapDigit')
-    let g:AutoComplPop_MapDigit = 1
+" Activate automatic popup menu if this file is loaded
+if !exists('g:AutoComplPop_LoadAndEnable')
+    let g:AutoComplPop_LoadAndEnable = 0
 endif
 
 " Map each string of this list as trigger to open the popup menu.
-if !exists('g:AutoComplPop_MapMore')
-    let g:AutoComplPop_MapMore = ['_']
+if !exists('g:AutoComplPop_MapList')
+    let g:AutoComplPop_MapList = ['a','b','c','d','e','f','g','h','i','j','k','l','m',
+                \                 'n','o','p','q','r','s','t','u','v','w','x','y','z',
+                \                 'A','B','C','D','E','F','G','H','I','J','K','L','M',
+                \                 'N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
+                \                 '0','1','2','3','4','5','6','7','8','9','_']
 endif
 
 " Do not open the popup menu if length of inputting word is less than this.
@@ -98,106 +99,97 @@ if !exists('g:AutoComplPop_PopupCmd')
     let g:AutoComplPop_PopupCmd = "\<C-N>"
 endif
 
+" Set this to 'complete' when open the popup menu
+if !exists('g:AutoComplPop_CompleteOption')
+    let g:AutoComplPop_CompleteOption = '.,w,b'
+endif
 
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-command! -narg=0 -bar AutoComplPopEnable call <SID>Enable()
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+command! -narg=0 -bar AutoComplPopEnable  call <SID>Enable()
 command! -narg=0 -bar AutoComplPopDisable call <SID>Disable()
+command! -narg=0 -bar AutoComplPopLock    call <SID>Lock()
+command! -narg=0 -bar AutoComplPopUnlock  call <SID>Unlock()
 
 
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 let s:MapList = []
+let s:lockCount = 0
 
 
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-function! g:AutoComplPop_ControlPopupMenu(beginning_popup)
+function! g:AutoComplPop_OpenPopupMenu(nRetry)
+    let s:_completeopt = &completeopt
+    set completeopt=menuone
 
-    echo ""
+    let s:_complete = &complete
+    let &complete = g:AutoComplPop_CompleteOption
 
-    " a command to restore to original text
-    if !a:beginning_popup
-        let cmd = ""
-    elseif &completeopt =~ '\clongest'
-        let cmd = "\<C-N>\<C-P>"
-    else
-        let cmd = "\<C-P>"
-    endif
-
-    " a command to end completion mode if completion matches are not found
-    if !pumvisible()
-        return cmd . "\<Space>\<C-H>"
-    endif 
-
-    " a command to select the first match
-    if a:beginning_popup
-        return cmd . "\<Down>"
-    endif
-
-    return cmd
-
+    return g:AutoComplPop_PopupCmd . "\<C-R>=g:AutoComplPop_AfterOpenPopupMenu(" . a:nRetry . ")\<CR>"
 endfunction
 
 
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+function! g:AutoComplPop_AfterOpenPopupMenu(nRetry)
+    let &completeopt = s:_completeopt
+    let &complete = s:_complete
+
+    if pumvisible()
+        " a command to restore to original text and select the first match
+        return "\<C-P>\<Down>"
+    elseif a:nRetry > 0
+        " In case of dividing words by symbols while popup menu is visible,
+        " popup is not available unless input <C-E> (e.g. 'for(int', 'a==b')
+        return "\<C-E>\<C-R>=g:AutoComplPop_OpenPopupMenu(" . (a:nRetry - 1) . ")\<CR>"
+    else
+        return "\<C-E>"
+    endif 
+endfunction
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 function! <SID>InsertAndPopup(input)
-    if pumvisible()
-        return a:input . "\<C-R>=g:AutoComplPop_ControlPopupMenu(0)\<CR>"
+    if s:lockCount > 0 || pumvisible()
+        return a:input
     endif
 
-    let last_word = matchstr(strpart(getline('.'), 0, col('.') - 1) . a:input, '^.*\zs\<\k\{-}$')
-    let last_word_len = len(last_word)
+    let last_word_len = len(matchstr(strpart(getline('.'), 0, col('.') - 1) . a:input,
+                \                    '^.*\zs\<\k\{-}$'))
     if last_word_len < g:AutoComplPop_MinLength || last_word_len > g:AutoComplPop_MaxLength
-        " End Completion mode in case of dividing words by symbols. (e.g. 'for(int', 'value_a==value_b')
-        return a:input . "\<C-R>=g:AutoComplPop_ControlPopupMenu(0)\<CR>"
+        return a:input
     endif
 
-    return a:input . g:AutoComplPop_PopupCmd . "\<C-R>=g:AutoComplPop_ControlPopupMenu(1)\<CR>"
+    if last_word_len == g:AutoComplPop_MinLength
+        let nRetry = 1
+    else
+        let nRetry = 0
+    endif
+
+    return a:input  . "\<C-R>=g:AutoComplPop_OpenPopupMenu(" . nRetry . ")\<CR>"
 endfunction
 
 
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 function! <SID>Enable()
     if !empty(s:MapList)
         call <SID>Disable()
     endif
 
-    if g:AutoComplPop_MapLower
-        let nr = char2nr('a')
-        while nr <= char2nr('z')
-            call add(s:MapList, nr2char(nr))
-            let nr = nr + 1
-        endwhile
-    endif
-
-    if g:AutoComplPop_MapUpper
-        let nr = char2nr('A')
-        while nr <= char2nr('Z')
-            call add(s:MapList, nr2char(nr))
-            let nr = nr + 1
-        endwhile
-    endif
-
-    if g:AutoComplPop_MapDigit
-        let nr = char2nr('0')
-        while nr <= char2nr('9')
-            call add(s:MapList, nr2char(nr))
-            let nr = nr + 1
-        endwhile
-    endif
-
-    call extend(s:MapList, g:AutoComplPop_MapMore)
+    let s:MapList = deepcopy(g:AutoComplPop_MapList)
 
     for item in s:MapList
-        execute 'inoremap <expr> ' . item . ' <SID>InsertAndPopup("'. item . '")'
+        execute 'inoremap <silent> <expr> ' . item . ' <SID>InsertAndPopup("'. item . '")'
     endfor
 endfunction
 
 
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 function! <SID>Disable()
     if !empty(s:MapList)
@@ -206,9 +198,35 @@ function! <SID>Disable()
         endfor
 
         unlet s:MapList[0:]
+        let s:lockCount = 0
     endif
 endfunction
 
 
-"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+function! <SID>Lock()
+    let s:lockCount += 1
+endfunction
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+function! <SID>Unlock()
+    let s:lockCount -= 1
+    if s:lockCount < 0
+        let s:lockCount = 0
+        throw "autocomplpop: not locked" 
+    endif
+endfunction
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+if g:AutoComplPop_LoadAndEnable
+    AutoComplPopEnable
+endif
+
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
