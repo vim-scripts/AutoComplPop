@@ -2,7 +2,7 @@
 " autocomplpop.vim - Automatically open the popup menu for completion.
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "
-" Last Change:  09-Nov-2007.
+" Last Change:  12-Nov-2007.
 " Author:       Takeshi Nishida <ns9tks(at)ns9tks.net>
 " Version:      1.1, for Vim 7.0
 " Licence:      MIT Licence
@@ -63,6 +63,9 @@
 "
 "-----------------------------------------------------------------------------
 " ChangeLog:
+"   1.2:
+"       - Fixed bugs related to 'completeopt'.
+"
 "   1.1:
 "       - Added g:AutoComplPop_IgnoreCaseOption option.
 "       - Added g:AutoComplPop_NotEnableAtStartup option.
@@ -159,6 +162,14 @@ function! <SID>Initialize()
     command! -bar -narg=0 AutoComplPopUnlock  call <SID>Unlock()
 
     "-------------------------------------------------------------------------
+    " AUTOCOMMANDS
+        augroup AutoComplPop_GlobalAutoCommand
+            autocmd!
+            autocmd CursorMovedI * call <SID>OnCursorMovedI()
+            autocmd InsertLeave  * call <SID>OnInsertLeave()
+        augroup END
+
+    "-------------------------------------------------------------------------
     " ETC
     if !g:AutoComplPop_NotEnableAtStartup
         AutoComplPopEnable
@@ -172,59 +183,6 @@ endfunction
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 "-----------------------------------------------------------------------------
-function! g:AutoComplPop_OpenPopupMenu(nRetry)
-    let s:_completeopt = &completeopt
-    let   &completeopt = 'menuone'
-    let s:_complete = &complete
-    let   &complete = g:AutoComplPop_CompleteOption
-    let s:_ignorecase = &ignorecase
-    let   &ignorecase = g:AutoComplPop_IgnoreCaseOption
-
-    return g:AutoComplPop_PopupCmd . "\<C-r>=g:AutoComplPop_AfterOpenPopupMenu(" . a:nRetry . ")\<CR>"
-endfunction
-
-
-"-----------------------------------------------------------------------------
-function! g:AutoComplPop_AfterOpenPopupMenu(nRetry)
-    let &completeopt = s:_completeopt
-    let &complete = s:_complete
-    let &ignorecase  = s:_ignorecase
-
-    if pumvisible()
-        " a command to restore to original text and select the first match
-        return "\<C-p>\<Down>"
-    elseif a:nRetry > 0
-        " In case of dividing words by symbols while popup menu is visible,
-        " popup is not available unless input <C-e> (e.g. 'for(int', 'a==b')
-        return "\<C-e>\<C-r>=g:AutoComplPop_OpenPopupMenu(" . (a:nRetry - 1) . ")\<CR>"
-    else
-        return "\<C-e>"
-    endif 
-endfunction
-
-
-"-----------------------------------------------------------------------------
-function! <SID>InsertAndPopup(input)
-    if s:lock_count > 0 || pumvisible()
-        return a:input
-    endif
-
-    let last_word_len = len(matchstr(strpart(getline('.'), 0, col('.') - 1) . a:input, '\k*$'))
-    if last_word_len < g:AutoComplPop_MinLength || last_word_len > g:AutoComplPop_MaxLength
-        return a:input
-    endif
-
-    if last_word_len == g:AutoComplPop_MinLength
-        let nRetry = 1
-    else
-        let nRetry = 0
-    endif
-
-    return a:input  . "\<C-r>=g:AutoComplPop_OpenPopupMenu(" . nRetry . ")\<CR>"
-endfunction
-
-
-"-----------------------------------------------------------------------------
 function! <SID>Enable()
     if !empty(s:map_list)
         call <SID>Disable()
@@ -233,7 +191,7 @@ function! <SID>Enable()
     let s:map_list = deepcopy(g:AutoComplPop_MapList)
 
     for item in s:map_list
-        execute 'inoremap <silent> <expr> ' . item . ' <SID>InsertAndPopup("'. item . '")'
+        execute 'inoremap <silent> <expr> ' . item . ' <SID>FeedKeysAndPopup("' . item . '")'
     endfor
 endfunction
 
@@ -262,6 +220,83 @@ function! <SID>Unlock()
         let s:lock_count = 0
         throw "autocomplpop: not locked" 
     endif
+endfunction
+
+
+"-----------------------------------------------------------------------------
+function! <SID>FeedKeysAndPopup(keys)
+    let last_word_len = len(<SID>GetLastWord() . a:keys)
+    if s:lock_count == 0 && !pumvisible() && last_word_len >= g:AutoComplPop_MinLength &&
+                \                            last_word_len <= g:AutoComplPop_MaxLength
+        call <SID>SetOrRestoreOption(1)
+
+        let s:popup_fed = 1
+    endif
+
+    return a:keys
+endfunction
+
+
+"-----------------------------------------------------------------------------
+function! g:AutoComplPop_HandlePopupMenu(retry)
+    echo ""
+    if pumvisible()
+        " a command to restore to original text and select the first match
+        return "\<C-p>\<Down>"
+    elseif a:retry > 0
+        " In case of dividing words by symbols while popup menu is visible,
+        " popup is not available unless input <C-e> (e.g. "for(int", "a==b")
+        return "\<C-e>" . g:AutoComplPop_PopupCmd . "\<C-r>=g:AutoComplPop_HandlePopupMenu(" . (a:retry - 1) . ")\<CR>"
+    else
+        return "\<C-e>"
+    endif 
+endfunction
+
+
+"-----------------------------------------------------------------------------
+function! <SID>GetLastWord()
+    return matchstr(strpart(getline('.'), 0, col('.') - 1), '\k*$')
+endfunction
+
+
+"-----------------------------------------------------------------------------
+function! <SID>SetOrRestoreOption(set_or_restore)
+    if a:set_or_restore && !exists('s:_completeopt')
+        let s:_completeopt = &completeopt
+        let   &completeopt = 'menuone'
+        let s:_complete = &complete
+        let   &complete = g:AutoComplPop_CompleteOption
+        let s:_ignorecase = &ignorecase
+        let   &ignorecase = g:AutoComplPop_IgnoreCaseOption
+    elseif !a:set_or_restore && exists('s:_completeopt')
+        let     &completeopt = s:_completeopt
+        unlet s:_completeopt
+        let     &complete    = s:_complete
+        unlet s:_complete
+        let     &ignorecase  = s:_ignorecase
+        unlet s:_ignorecase
+    endif
+endfunction
+
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+" EVENT HANDLER:
+""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+"-----------------------------------------------------------------------------
+function! <SID>OnCursorMovedI()
+    if exists('s:popup_fed')
+        unlet s:popup_fed
+        let retry = (len(<SID>GetLastWord()) == g:AutoComplPop_MinLength ? 1 : 0)
+        call feedkeys(g:AutoComplPop_PopupCmd . "\<C-r>=g:AutoComplPop_HandlePopupMenu(" . retry . ")\<CR>", 'n')
+    elseif !pumvisible()
+        call <SID>SetOrRestoreOption(0)
+    endif
+endfunction
+
+
+"-----------------------------------------------------------------------------
+function! <SID>OnInsertLeave()
+    call <SID>SetOrRestoreOption(0)
 endfunction
 
 
