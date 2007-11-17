@@ -2,16 +2,16 @@
 " autocomplpop.vim - Automatically open the popup menu for completion.
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "
-" Last Change:  12-Nov-2007.
+" Last Change:  18-Nov-2007.
 " Author:       Takeshi Nishida <ns9tks(at)ns9tks.net>
-" Version:      1.1, for Vim 7.0
+" Version:      1.3, for Vim 7.0
 " Licence:      MIT Licence
 "
 "-----------------------------------------------------------------------------
 " Description:
 "   Install this plugin and your vim comes to automatically opens the popup
 "   menu for completion when you input a few charactors in a insert mode. This
-"   plugin works by mapping alphanumeric characters and underscore.
+"   plugin works by mapping alphanumeric characters and some symbols.
 "
 "-----------------------------------------------------------------------------
 " Installation:
@@ -22,40 +22,52 @@
 "   If this plugin has been installed, the auto-popup is enabled at startup by
 "   default.
 "
+"   Which completion method is used depends on the text before the cursor. The
+"   default behavior is as follows:
+"
+"       1. The keyword completion is attempted if there are more than one
+"          keyword charactor before the cursor.
+"       2. The filename completion is attempted if there is '/' or '\' before
+"          the cursor.
+"       3. The omni completion is attempted in ruby file if there is '.' or
+"          '::' before the cursor.
+"
+"   This behavior is customizable.
+"
 "   Commands:
 "       :AutoComplPopEnable
-"           It makes mappings for the auto-popup.
+"           - makes mappings for the auto-popup.
 "       :AutoComplPopDisable
-"           It removes mappings for the auto-popup.
+"           - removes mappings for the auto-popup.
 "       :AutoComplPopLock
-"           Suspend the auto-popup.
+"           - suspends the auto-popup.
 "       :AutoComplPopUnlock
-"           Resume the auto-popup after :AutoComplPopLock.
+"           - resumes the auto-popup after :AutoComplPopLock.
 "
 "-----------------------------------------------------------------------------
 " Options:
 "   g:AutoComplPop_NotEnableAtStartup:
-"       The auto-popup is not enabled at startup if non-zero is set.
+"       The auto-popup is not enabled at startup if this is non-zero.
 "
 "   g:AutoComplPop_MapList:
-"       Map each string of this list as trigger to open the popup menu.
-"
-"   g:AutoComplPop_MinLength:
-"       It does not open the popup menu if the length of inputting word is
-"       less than this.
-"
-"   g:AutoComplPop_MaxLength:
-"       It does not open the popup menu if the length of inputting word is
-"       more than this.
+"       This is a list. Each string of this list is mapped as trigger to open
+"       the popup menu.
 "
 "   g:AutoComplPop_IgnoreCaseOption
-"       It set this to 'ignorecase' when opens the popup menu.
-"
-"   g:AutoComplPop_PopupCmd:
-"       It inserts this to open the popup menu.
+"       This is set to 'ignorecase' when the popup menu is opened.
 "
 "   g:AutoComplPop_CompleteOption:
-"       It set this to 'complete' when opens the popup menu.
+"       This is set to 'complete' when the popup menu is opened.
+"
+"   g:AutoComplPop_CompleteoptPreview:
+"       If this is non-zero, 'preview' is added to 'completeopt' when the
+"       popup menu is opened.
+"
+"   g:AutoComplPop_Behavior:
+"       This is a dictionary. Each key corresponds to a filetype. '*' is
+"       default. Each value is a list which consists of pairs of a pattern for
+"       text before the cursor and a command for completion. These are
+"       attempted in sequence until completion item is found.
 "
 "-----------------------------------------------------------------------------
 " Thanks:
@@ -63,6 +75,15 @@
 "
 "-----------------------------------------------------------------------------
 " ChangeLog:
+"   1.3:
+"       - Supported Ruby-omni-completion by default.
+"       - Supported filename completion by default.
+"       - Added g:AutoComplPop_Behavior option.
+"       - Added g:AutoComplPop_CompleteoptPreview option.
+"       - Removed g:AutoComplPop_MinLength option.
+"       - Removed g:AutoComplPop_MaxLength option.
+"       - Removed g:AutoComplPop_PopupCmd option.
+"
 "   1.2:
 "       - Fixed bugs related to 'completeopt'.
 "
@@ -118,6 +139,7 @@ function! <SID>Initialize()
     " CONSTANTS
     let s:map_list = []
     let s:lock_count = 0
+    let s:popup_cmds = []
 
     "-------------------------------------------------------------------------
     " OPTIONS
@@ -127,32 +149,42 @@ function! <SID>Initialize()
     endif
     ".........................................................................
     if !exists('g:AutoComplPop_MapList')
-        let g:AutoComplPop_MapList = ['a','b','c','d','e','f','g','h','i','j','k','l','m',
-                    \                 'n','o','p','q','r','s','t','u','v','w','x','y','z',
-                    \                 'A','B','C','D','E','F','G','H','I','J','K','L','M',
-                    \                 'N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
-                    \                 '0','1','2','3','4','5','6','7','8','9','_']
-    endif
-    ".........................................................................
-    if !exists('g:AutoComplPop_MinLength')
-        let g:AutoComplPop_MinLength = 2
-    endif
-    ".........................................................................
-    if !exists('g:AutoComplPop_MaxLength')
-        let g:AutoComplPop_MaxLength = 999
+        let g:AutoComplPop_MapList = [
+                    \ 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+                    \ 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+                    \ 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+                    \ 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+                    \ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+                    \ '_', '.', ':', '/', '\', ]
     endif
     ".........................................................................
     if !exists('g:AutoComplPop_IgnoreCaseOption')
         let g:AutoComplPop_IgnoreCaseOption = 0
     endif
     ".........................................................................
-    if !exists('g:AutoComplPop_PopupCmd')
-        let g:AutoComplPop_PopupCmd = "\<C-n>"
-    endif
-    ".........................................................................
     if !exists('g:AutoComplPop_CompleteOption')
         let g:AutoComplPop_CompleteOption = '.,w,b'
     endif
+
+    ".........................................................................
+    if !exists('g:AutoComplPop_CompleteoptPreview')
+        let g:AutoComplPop_CompleteoptPreview = 0
+    endif
+    ".........................................................................
+    if !exists('g:AutoComplPop_Behavior')
+        let g:AutoComplPop_Behavior = {}
+                    \ 
+    endif
+    call extend(g:AutoComplPop_Behavior,
+                \ { 'ruby' : [ ['\k\{2,}$', "\<C-n>"],
+                \              ['\S[/\\]\f*$', "\<C-x>\<C-f>"],
+                \              ['\([^. \t]\.\|^:\|\W:\)$', "\<C-x>\<C-o>"],
+                \            ],
+                \   '*'    : [ ['\k\{2,}$', "\<C-n>"],
+                \              ['\S[/\\]\f*$', "\<C-x>\<C-f>"],
+                \            ],
+                \ } ,'keep')
+    ".........................................................................
 
     "-------------------------------------------------------------------------
     " COMMANDS
@@ -168,6 +200,9 @@ function! <SID>Initialize()
             autocmd CursorMovedI * call <SID>OnCursorMovedI()
             autocmd InsertLeave  * call <SID>OnInsertLeave()
         augroup END
+
+    "-------------------------------------------------------------------------
+    " MAPPING
 
     "-------------------------------------------------------------------------
     " ETC
@@ -191,7 +226,7 @@ function! <SID>Enable()
     let s:map_list = deepcopy(g:AutoComplPop_MapList)
 
     for item in s:map_list
-        execute 'inoremap <silent> <expr> ' . item . ' <SID>FeedKeysAndPopup("' . item . '")'
+        execute 'inoremap <silent> ' . item . ' ' . item . "\<C-r>=<SID>FeedPopup()\<CR>"
     endfor
 endfunction
 
@@ -224,50 +259,16 @@ endfunction
 
 
 "-----------------------------------------------------------------------------
-function! <SID>FeedKeysAndPopup(keys)
-    let last_word_len = len(<SID>GetLastWord() . a:keys)
-    if s:lock_count == 0 && !pumvisible() && last_word_len >= g:AutoComplPop_MinLength &&
-                \                            last_word_len <= g:AutoComplPop_MaxLength
-        call <SID>SetOrRestoreOption(1)
-
-        let s:popup_fed = 1
-    endif
-
-    return a:keys
-endfunction
-
-
-"-----------------------------------------------------------------------------
-function! g:AutoComplPop_HandlePopupMenu(retry)
-    echo ""
-    if pumvisible()
-        " a command to restore to original text and select the first match
-        return "\<C-p>\<Down>"
-    elseif a:retry > 0
-        " In case of dividing words by symbols while popup menu is visible,
-        " popup is not available unless input <C-e> (e.g. "for(int", "a==b")
-        return "\<C-e>" . g:AutoComplPop_PopupCmd . "\<C-r>=g:AutoComplPop_HandlePopupMenu(" . (a:retry - 1) . ")\<CR>"
-    else
-        return "\<C-e>"
-    endif 
-endfunction
-
-
-"-----------------------------------------------------------------------------
-function! <SID>GetLastWord()
-    return matchstr(strpart(getline('.'), 0, col('.') - 1), '\k*$')
-endfunction
-
-
-"-----------------------------------------------------------------------------
 function! <SID>SetOrRestoreOption(set_or_restore)
     if a:set_or_restore && !exists('s:_completeopt')
         let s:_completeopt = &completeopt
-        let   &completeopt = 'menuone'
+        let   &completeopt = 'menuone' . (g:AutoComplPop_CompleteoptPreview ? ',preview' : '')
         let s:_complete = &complete
         let   &complete = g:AutoComplPop_CompleteOption
         let s:_ignorecase = &ignorecase
         let   &ignorecase = g:AutoComplPop_IgnoreCaseOption
+        let s:_lazyredraw = &lazyredraw
+        let   &lazyredraw = 0
     elseif !a:set_or_restore && exists('s:_completeopt')
         let     &completeopt = s:_completeopt
         unlet s:_completeopt
@@ -275,24 +276,65 @@ function! <SID>SetOrRestoreOption(set_or_restore)
         unlet s:_complete
         let     &ignorecase  = s:_ignorecase
         unlet s:_ignorecase
+        let     &lazyredraw  = s:_lazyredraw
+        unlet s:_lazyredraw
     endif
 endfunction
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" EVENT HANDLER:
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 "-----------------------------------------------------------------------------
+function! <SID>FeedPopup()
+    if !pumvisible()
+        call <SID>SetOrRestoreOption(1)
+        let s:popup_fed = 1
+        return ''
+    else
+        " The popup menu is hidden by "\<C-r>" for users who set 'lazyredraw'.
+        " To show it, return "\<Down>\<Up>"
+        return ''
+    endif
+endfunction
+
+"-----------------------------------------------------------------------------
+" CursorMovedI does not triggered while the pupup menu is visible. (vim's bug?)
 function! <SID>OnCursorMovedI()
-    if exists('s:popup_fed')
-        unlet s:popup_fed
-        let retry = (len(<SID>GetLastWord()) == g:AutoComplPop_MinLength ? 1 : 0)
-        call feedkeys(g:AutoComplPop_PopupCmd . "\<C-r>=g:AutoComplPop_HandlePopupMenu(" . retry . ")\<CR>", 'n')
-    elseif !pumvisible()
+    if !exists('s:popup_fed')
+        if !pumvisible()
+            call <SID>SetOrRestoreOption(0)
+        endif
+        return
+    endif
+
+    unlet s:popup_fed
+
+    let text = strpart(getline('.'), 0, col('.') - 1)
+    let type = (has_key(g:AutoComplPop_Behavior, &filetype) ? &filetype : '*')
+
+    let s:popup_cmds = map(filter(copy(g:AutoComplPop_Behavior[type]), 'text =~ v:val[0]'), 'v:val[1]')
+    if !empty(s:popup_cmds)
+        " In case of dividing words by symbols while popup menu is visible,
+        " popup is not available unless input <C-e>. (e.g. "for(int", "ab==cd")
+        " (vim's bug?)
+        " So uses g:AutoComplPop_HandlePopupMenu(0) and not g:AutoComplPop_HandlePopupMenu(1)
+        call feedkeys(s:popup_cmds[0] . "\<C-r>=g:AutoComplPop_HandlePopupMenu(0)\<CR>", 'n')
+    else
         call <SID>SetOrRestoreOption(0)
     endif
 endfunction
 
+"-----------------------------------------------------------------------------
+function! g:AutoComplPop_HandlePopupMenu(index)
+    echo ""
+    if pumvisible()
+        " a command to restore to original text and select the first match
+        return "\<C-p>\<Down>"
+    elseif a:index < len(s:popup_cmds)
+        return "\<C-e>" . s:popup_cmds[a:index] . "\<C-r>=g:AutoComplPop_HandlePopupMenu(" . (a:index + 1) . ")\<CR>"
+    else
+        call <SID>SetOrRestoreOption(0)
+        return "\<C-e>"
+    endif 
+endfunction
 
 "-----------------------------------------------------------------------------
 function! <SID>OnInsertLeave()
