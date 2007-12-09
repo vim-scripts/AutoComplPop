@@ -2,9 +2,9 @@
 " autocomplpop.vim - Automatically open the popup menu for completion.
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "
-" Last Change:  18-Nov-2007.
-" Author:       Takeshi Nishida <ns9tks(at)ns9tks.net>
-" Version:      1.3, for Vim 7.0
+" Last Change:  10-Dec-2007.
+" Author:       Takeshi Nishida <ns9tks(at)gmail.com>
+" Version:      1.4, for Vim 7.0
 " Licence:      MIT Licence
 "
 "-----------------------------------------------------------------------------
@@ -30,7 +30,7 @@
 "       2. The filename completion is attempted if there is '/' or '\' before
 "          the cursor.
 "       3. The omni completion is attempted in ruby file if there is '.' or
-"          '::' before the cursor.
+"          '::' before the cursor. (Ruby interface is required.)
 "
 "   This behavior is customizable.
 "
@@ -75,6 +75,11 @@
 "
 "-----------------------------------------------------------------------------
 " ChangeLog:
+"   1.4:
+"       - Fixed the bug that the auto-popup was not suspended in fuzzyfinder.
+"       - Fixed the bug that an error has occurred with Ruby-omni-completion
+"         unless Ruby interface.
+"
 "   1.3:
 "       - Supported Ruby-omni-completion by default.
 "       - Supported filename completion by default.
@@ -140,6 +145,7 @@ function! <SID>Initialize()
     let s:map_list = []
     let s:lock_count = 0
     let s:popup_cmds = []
+    let s:has_win = (has('win16') || has('win32') || has('win64'))
 
     "-------------------------------------------------------------------------
     " OPTIONS
@@ -155,7 +161,10 @@ function! <SID>Initialize()
                     \ 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
                     \ 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
                     \ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-                    \ '_', '.', ':', '/', '\', ]
+                    \ '_', '.', ':', '/', ]
+        if s:has_win
+            call add(g:AutoComplPop_MapList, '\')
+        endif
     endif
     ".........................................................................
     if !exists('g:AutoComplPop_IgnoreCaseOption')
@@ -173,17 +182,20 @@ function! <SID>Initialize()
     ".........................................................................
     if !exists('g:AutoComplPop_Behavior')
         let g:AutoComplPop_Behavior = {}
-                    \ 
     endif
     call extend(g:AutoComplPop_Behavior,
-                \ { 'ruby' : [ ['\k\{2,}$', "\<C-n>"],
-                \              ['\S[/\\]\f*$', "\<C-x>\<C-f>"],
-                \              ['\([^. \t]\.\|^:\|\W:\)$', "\<C-x>\<C-o>"],
-                \            ],
-                \   '*'    : [ ['\k\{2,}$', "\<C-n>"],
-                \              ['\S[/\\]\f*$', "\<C-x>\<C-f>"],
+                \ { '*'    : [ ['\k\{2,}$'                               , "\<C-n>"],
+                \              [(s:has_win ? '\S[/\\]\f*$' : '\S[/]\f*$'), "\<C-x>\<C-f>"],
                 \            ],
                 \ } ,'keep')
+    if has('ruby')
+        call extend(g:AutoComplPop_Behavior,
+                    \ { 'ruby' : [ ['\k\{2,}$'                               , "\<C-n>"],
+                    \              [(s:has_win ? '\S[/\\]\f*$' : '\S[/]\f*$'), "\<C-x>\<C-f>"],
+                    \              ['\([^. \t]\.\|^:\|\W:\)$'                , "\<C-x>\<C-o>"],
+                    \            ],
+                    \ } ,'keep')
+    endif
     ".........................................................................
 
     "-------------------------------------------------------------------------
@@ -263,12 +275,12 @@ function! <SID>SetOrRestoreOption(set_or_restore)
     if a:set_or_restore && !exists('s:_completeopt')
         let s:_completeopt = &completeopt
         let   &completeopt = 'menuone' . (g:AutoComplPop_CompleteoptPreview ? ',preview' : '')
-        let s:_complete = &complete
-        let   &complete = g:AutoComplPop_CompleteOption
-        let s:_ignorecase = &ignorecase
-        let   &ignorecase = g:AutoComplPop_IgnoreCaseOption
-        let s:_lazyredraw = &lazyredraw
-        let   &lazyredraw = 0
+        let s:_complete    = &complete
+        let   &complete    = g:AutoComplPop_CompleteOption
+        let s:_ignorecase  = &ignorecase
+        let   &ignorecase  = g:AutoComplPop_IgnoreCaseOption
+        let s:_lazyredraw  = &lazyredraw
+        let   &lazyredraw  = 0
     elseif !a:set_or_restore && exists('s:_completeopt')
         let     &completeopt = s:_completeopt
         unlet s:_completeopt
@@ -284,7 +296,7 @@ endfunction
 
 "-----------------------------------------------------------------------------
 function! <SID>FeedPopup()
-    if !pumvisible()
+    if s:lock_count == 0 && !pumvisible()
         call <SID>SetOrRestoreOption(1)
         let s:popup_fed = 1
         return ''
@@ -296,7 +308,7 @@ function! <SID>FeedPopup()
 endfunction
 
 "-----------------------------------------------------------------------------
-" CursorMovedI does not triggered while the pupup menu is visible. (vim's bug?)
+" CursorMovedI is not triggered while the pupup menu is visible. (vim's bug?)
 function! <SID>OnCursorMovedI()
     if !exists('s:popup_fed')
         if !pumvisible()
@@ -313,7 +325,7 @@ function! <SID>OnCursorMovedI()
     let s:popup_cmds = map(filter(copy(g:AutoComplPop_Behavior[type]), 'text =~ v:val[0]'), 'v:val[1]')
     if !empty(s:popup_cmds)
         " In case of dividing words by symbols while popup menu is visible,
-        " popup is not available unless input <C-e>. (e.g. "for(int", "ab==cd")
+        " popup is not available unless input <C-e> or try popup once. (e.g. "for(int", "ab==cd")
         " (vim's bug?)
         " So uses g:AutoComplPop_HandlePopupMenu(0) and not g:AutoComplPop_HandlePopupMenu(1)
         call feedkeys(s:popup_cmds[0] . "\<C-r>=g:AutoComplPop_HandlePopupMenu(0)\<CR>", 'n')
