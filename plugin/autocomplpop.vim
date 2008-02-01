@@ -2,9 +2,9 @@
 " autocomplpop.vim - Automatically open the popup menu for completion.
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "
-" Last Change:  26-Dec-2007.
+" Last Change:  01-Feb-2008.
 " Author:       Takeshi Nishida <ns9tks(at)gmail.com>
-" Version:      1.5, for Vim 7.0
+" Version:      1.6, for Vim 7.0
 " Licence:      MIT Licence
 " URL:          http://www.vim.org/scripts/script.php?script_id=1879
 "
@@ -67,14 +67,14 @@
 "   g:AutoComplPop_Behavior:
 "     This is a dictionary. Each key corresponds to a filetype. '*' is
 "     default. Each value is a list. These are attempted in sequence until
-"     completion item is found. Each element is a list which has following
-"     items:
-"       [0]:
-"         If this pattern matched a text before the cursor, a popup menu is
-"         opened.
-"       [1]:
+"     completion item is found. Each element is a dictionary which has
+"     following items:
+"       ['command']:
 "         This is a command to be fed to open a popup menu for completion.
-"       [2]:
+"       ['pattern'], ['excluded']:
+"         If a text before the cursor matches ['pattern'] and not
+"         ['excluded'], a popup menu is opened.
+"       ['repeat']:
 "         It automatically repeats a completion if non-zero is set.
 "
 "-----------------------------------------------------------------------------
@@ -83,9 +83,15 @@
 "
 "-----------------------------------------------------------------------------
 " ChangeLog:
+"   1.6:
+"     - Redesigned g:AutoComplPop_Behavior option.
+"     - Changed default value of g:AutoComplPop_CompleteOption option.
+"     - Changed default value of g:AutoComplPop_MapList option.
+"
 "   1.5:
 "     - Implemented continuous-completion for the filename completion. And
 "       added new option to g:AutoComplPop_Behavior.
+"
 "   1.4:
 "     - Fixed the bug that the auto-popup was not suspended in fuzzyfinder.
 "     - Fixed the bug that an error has occurred with Ruby-omni-completion
@@ -154,7 +160,6 @@ function! <SID>Initialize()
   " CONSTANTS
   let s:map_list = []
   let s:lock_count = 0
-  let s:has_win = (has('win16') || has('win32') || has('win64'))
 
   "-------------------------------------------------------------------------
   " OPTIONS
@@ -170,10 +175,7 @@ function! <SID>Initialize()
           \ 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
           \ 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
           \ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-          \ '_', '.', ':', '/', ]
-    if s:has_win
-      call add(g:AutoComplPop_MapList, '\')
-    endif
+          \ '-', '_', '~', '^', '.', ',', ':', '!', '#', '=', '%', '$', '@', '/', '\', ]
   endif
   ".........................................................................
   if !exists('g:AutoComplPop_IgnoreCaseOption')
@@ -181,7 +183,7 @@ function! <SID>Initialize()
   endif
   ".........................................................................
   if !exists('g:AutoComplPop_CompleteOption')
-    let g:AutoComplPop_CompleteOption = '.,w,b'
+    let g:AutoComplPop_CompleteOption = '.,w,b,k'
   endif
 
   ".........................................................................
@@ -192,19 +194,62 @@ function! <SID>Initialize()
   if !exists('g:AutoComplPop_Behavior')
     let g:AutoComplPop_Behavior = {}
   endif
-  call extend(g:AutoComplPop_Behavior,
-        \ { '*'    : [ ['\k\{2,}$'                               , "\<C-n>"      , 0],
-        \              [(s:has_win ? '\S[/\\]\f*$' : '\S[/]\f*$'), "\<C-x>\<C-f>", 1],
-        \            ],
+  call extend(g:AutoComplPop_Behavior, {
+        \   '*' : [
+        \     {
+        \       'command'  : "\<C-n>",
+        \       'pattern'  : '\k\k$',
+        \       'excluded' : '^$',
+        \       'repeat'   : 0,
+        \     },
+        \     {
+        \       'command'  : "\<C-x>\<C-f>",
+        \       'pattern'  : (has('win32') || has('win64') ? '\f[/\\]\f*$' : '\f[/]\f*$'),
+        \       'excluded' : '[*/\\][/\\]\f*$',
+        \       'repeat'   : 1,
+        \     },
+        \   ],
+        \   'ruby' : [
+        \     {
+        \       'command'  : "\<C-n>",
+        \       'pattern'  : '\k\k$',
+        \       'excluded' : '^$',
+        \       'repeat'   : 0,
+        \     },
+        \     {
+        \       'command'  : "\<C-x>\<C-f>",
+        \       'pattern'  : (has('win32') || has('win64') ? '\f[/\\]\f*$' : '\f[/]\f*$'),
+        \       'excluded' : '[*/\\][/\\]\f*$',
+        \       'repeat'   : 1,
+        \     },
+        \     {
+        \       'command'  : "\<C-x>\<C-o>",
+        \       'pattern'  : '\([^. \t]\.\|^:\|\W:\)$',
+        \       'excluded' : (has('ruby') ? '^$' : '.*'),
+        \       'repeat'   : 0,
+        \     },
+        \   ],
+        \   'scheme' : [
+        \     {
+        \       'command'  : "\<C-n>",
+        \       'pattern'  : '\k\k$',
+        \       'excluded' : '^$',
+        \       'repeat'   : 0,
+        \     },
+        \     {
+        \       'command'  : "\<C-n>",
+        \       'pattern'  : '(\k$',
+        \       'excluded' : '^$',
+        \       'repeat'   : 0,
+        \     },
+        \     {
+        \       'command'  : "\<C-x>\<C-f>",
+        \       'pattern'  : (has('win32') || has('win64') ? '\f[/\\]\f*$' : '\f[/]\f*$'),
+        \       'excluded' : '[*/\\][/\\]\f*$',
+        \       'repeat'   : 1,
+        \     },
+        \   ],
         \ } ,'keep')
-  if has('ruby')
-    call extend(g:AutoComplPop_Behavior,
-          \ { 'ruby' : [ ['\k\{2,}$'                               , "\<C-n>"      , 0],
-          \              [(s:has_win ? '\S[/\\]\f*$' : '\S[/]\f*$'), "\<C-x>\<C-f>", 1],
-          \              ['\([^. \t]\.\|^:\|\W:\)$'                , "\<C-x>\<C-o>", 0],
-          \            ],
-          \ } ,'keep')
-  endif
   ".........................................................................
 
   "-------------------------------------------------------------------------
@@ -319,11 +364,11 @@ endfunction
 "-----------------------------------------------------------------------------
 function! <SID>OnCursorMovedI()
   " NOTE: CursorMovedI is not triggered while the pupup menu is visible. And
-  "       it is triggered when pupup menu disappeared.
+  "       it will be triggered when pupup menu is disappeared.
   if pumvisible()
     " do nothing
-  elseif exists('s:behav_last') && s:behav_last[2]
-    if strpart(getline('.'), 0, col('.') - 1) =~ s:behav_last[0]
+  elseif exists('s:behav_last') && s:behav_last.repeat
+    if <SID>MatchesBehavior(s:behav_last)
       let s:behav_rest = [s:behav_last]
       call feedkeys("\<C-r>=g:AutoComplPop_HandlePopupMenu(1)\<CR>", 'n')
     endif
@@ -331,13 +376,19 @@ function! <SID>OnCursorMovedI()
   elseif exists('s:req_popup')
     unlet s:req_popup
     let ftype = (has_key(g:AutoComplPop_Behavior, &filetype) ? &filetype : '*')
-    let text = strpart(getline('.'), 0, col('.') - 1)
-    let s:behav_rest = filter(copy(g:AutoComplPop_Behavior[ftype]), 'text =~ v:val[0]')
+    let s:behav_rest = filter(copy(g:AutoComplPop_Behavior[ftype]),
+          \                   '<SID>MatchesBehavior(v:val)')
     call feedkeys("\<C-r>=g:AutoComplPop_HandlePopupMenu(1)\<CR>", 'n')
   else
     call <SID>SetOrRestoreOption(0)
   endif
 
+endfunction
+
+"-----------------------------------------------------------------------------
+function! <SID>MatchesBehavior(behav)
+  let text = strpart(getline('.'), 0, col('.') - 1)
+  return text =~ a:behav.pattern && text !~ a:behav.excluded
 endfunction
 
 "-----------------------------------------------------------------------------
@@ -351,12 +402,12 @@ function! g:AutoComplPop_HandlePopupMenu(first)
       " In case of dividing words by symbols while popup menu is visible,
       " popup is not available unless input <C-e> or try popup once. (vim's bug?)
       " E.g. "for(int", "ab==cd"
-      " So duplicate first completion.
+      " So duplicates first completion.
       let s:behav_last = s:behav_rest[0]
-      return s:behav_last[1] . "\<C-r>=g:AutoComplPop_HandlePopupMenu(0)\<CR>"
+      return s:behav_last.command . "\<C-r>=g:AutoComplPop_HandlePopupMenu(0)\<CR>"
     else
       let s:behav_last = remove(s:behav_rest, 0)
-      return  "\<C-e>" . s:behav_last[1] . "\<C-r>=g:AutoComplPop_HandlePopupMenu(0)\<CR>"
+      return "\<C-e>" . s:behav_last.command . "\<C-r>=g:AutoComplPop_HandlePopupMenu(0)\<CR>"
     endif
   else
     unlet! s:behav_last
