@@ -2,16 +2,16 @@
 " autocomplpop.vim - Automatically open the popup menu for completion.
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "
-" Last Change:  01-Feb-2008.
+" Last Change:  12-Feb-2008.
 " Author:       Takeshi Nishida <ns9tks(at)gmail.com>
-" Version:      1.6, for Vim 7.0
+" Version:      1.6.1, for Vim 7.1
 " Licence:      MIT Licence
 " URL:          http://www.vim.org/scripts/script.php?script_id=1879
 "
 "-----------------------------------------------------------------------------
 " Description:
 "   Install this plugin and your vim comes to automatically opens the popup
-"   menu for completion when you input a few charactors in a insert mode. This
+"   menu for completion when you input a few characters in a insert mode. This
 "   plugin works by mapping alphanumeric characters and some symbols.
 "
 "-----------------------------------------------------------------------------
@@ -26,12 +26,15 @@
 "   Which completion method is used depends on the text before the cursor. The
 "   default behavior is as follows:
 "
-"     1. The keyword completion is attempted if there are more than one
-"        keyword charactor before the cursor.
-"     2. The filename completion is attempted if there is '/' or '\' before
-"        the cursor.
-"     3. The omni completion is attempted in ruby file if there is '.' or '::'
-"        before the cursor. (Ruby interface is required.)
+"     1. The keyword completion is attempted if the text before the cursor
+"        consists of two keyword character.
+"     2. The keyword completion is attempted in Scheme file if the text before
+"        the cursor consists of '(' + a keyword character.
+"     3. The filename completion is attempted if the text before the cursor
+"        consists of a filename character + a path separator + 0 or more
+"        filename characters.
+"     4. The omni completion is attempted in Ruby file if the text before the
+"        cursor consists of '.' or '::'. (Ruby interface is required.)
 "
 "   This behavior is customizable.
 "
@@ -83,6 +86,9 @@
 "
 "-----------------------------------------------------------------------------
 " ChangeLog:
+"   1.6.1:
+"     - Changed not to trigger the filename competion by a text which has
+"       multi-byte characters.
 "   1.6:
 "     - Redesigned g:AutoComplPop_Behavior option.
 "     - Changed default value of g:AutoComplPop_CompleteOption option.
@@ -205,7 +211,7 @@ function! <SID>Initialize()
         \     {
         \       'command'  : "\<C-x>\<C-f>",
         \       'pattern'  : (has('win32') || has('win64') ? '\f[/\\]\f*$' : '\f[/]\f*$'),
-        \       'excluded' : '[*/\\][/\\]\f*$',
+        \       'excluded' : '[*/\\][/\\]\f*$\|[^[:print:]]\f*$',
         \       'repeat'   : 1,
         \     },
         \   ],
@@ -219,7 +225,7 @@ function! <SID>Initialize()
         \     {
         \       'command'  : "\<C-x>\<C-f>",
         \       'pattern'  : (has('win32') || has('win64') ? '\f[/\\]\f*$' : '\f[/]\f*$'),
-        \       'excluded' : '[*/\\][/\\]\f*$',
+        \       'excluded' : '[*/\\][/\\]\f*$\|[^[:print:]]\f*$',
         \       'repeat'   : 1,
         \     },
         \     {
@@ -245,7 +251,7 @@ function! <SID>Initialize()
         \     {
         \       'command'  : "\<C-x>\<C-f>",
         \       'pattern'  : (has('win32') || has('win64') ? '\f[/\\]\f*$' : '\f[/]\f*$'),
-        \       'excluded' : '[*/\\][/\\]\f*$',
+        \       'excluded' : '[*/\\][/\\]\f*$\|[^[:print:]]\f*$',
         \       'repeat'   : 1,
         \     },
         \   ],
