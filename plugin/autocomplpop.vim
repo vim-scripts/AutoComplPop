@@ -3,7 +3,7 @@
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "
 " Author:       Takeshi Nishida <ns9tks(at)gmail.com>
-" Version:      1.7, for Vim 7.1
+" Version:      2.0, for Vim 7.1
 " Licence:      MIT Licence
 " URL:          http://www.vim.org/scripts/script.php?script_id=1879
 "
@@ -12,8 +12,8 @@
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Description: {{{1
 "   Install this plugin and your vim comes to automatically opens the popup
-"   menu for completion when you input a few characters in a insert mode. This
-"   plugin works by mapping alphanumeric characters and some symbols.
+"   menu for completion when you enter characters or move the cursor in Insert
+"   mode.
 "
 "-----------------------------------------------------------------------------
 " Installation: {{{1
@@ -43,22 +43,14 @@
 "
 "   Commands:
 "     :AutoComplPopEnable
-"       - makes mappings for the auto-popup.
+"       - makes autocommands for the auto-popup.
 "     :AutoComplPopDisable
-"       - removes mappings for the auto-popup.
-"     :AutoComplPopLock
-"       - suspends the auto-popup.
-"     :AutoComplPopUnlock
-"       - resumes the auto-popup after :AutoComplPopLock.
+"       - removes autocommands for the auto-popup.
 "
 "-----------------------------------------------------------------------------
 " Options: {{{1
 "   g:AutoComplPop_NotEnableAtStartup:
 "     The auto-popup is not enabled at startup if this is non-zero.
-"
-"   g:AutoComplPop_MapList:
-"     This is a list. Each string of this list is mapped as trigger to open
-"     the popup menu.
 "
 "   g:AutoComplPop_IgnoreCaseOption
 "     This is set to 'ignorecase' when the popup menu is opened.
@@ -89,6 +81,12 @@
 "
 "-----------------------------------------------------------------------------
 " ChangeLog: {{{1
+"   2.0:
+"     - Changed to use CursorMovedI event to feed a completion command instead
+"       of key mapping. Now the auto-popup is triggered by moving the cursor.
+"     - Changed to feed completion command after starting Insert mode.
+"     - Removed g:AutoComplPop_MapList option.
+"
 "   1.7:
 "     - Added behaviors for HTML/XHTML. Now supports the omni completion for
 "       HTML/XHTML.
@@ -160,7 +158,7 @@
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " INCLUDE GUARD: {{{1
-if exists('loaded_autocomplpop') || v:version < 700
+if exists('loaded_autocomplpop') || v:version < 701
   finish
 endif
 let loaded_autocomplpop = 1
@@ -178,40 +176,21 @@ function! s:GetPopupFeeder()
   return s:PopupFeeder
 endfunction
 
-
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" OBJECT: Mapper: manages global mappings {{{1
-let s:Mapper = { 'keys' :  [] }
 "-----------------------------------------------------------------------------
+function! s:Enable()
+  " NOTE: CursorMovedI is not triggered while the pupup menu is visible. And
+  "       it will be triggered when pupup menu is disappeared.
 
-"-----------------------------------------------------------------------------
-function! s:Mapper.map(keys)
-  call self.unmap()
-
-  let self.keys = copy(a:keys)
-
-  for key in self.keys
-    if key == ' '
-      execute 'inoremap <silent> <expr> <Space> '' '' . <SID>GetPopupFeeder().request_to_feed()'
-    else
-      execute printf('inoremap <silent> <expr> %s ''%s'' . <SID>GetPopupFeeder().request_to_feed()',
-            \        key, key)
-    endif
-  endfor
+  augroup AutoComplPopGlobalAutoCommand
+    autocmd InsertEnter  * call s:PopupFeeder.initialize()
+    autocmd InsertLeave  * call s:PopupFeeder.finish()
+    autocmd CursorMovedI * call s:PopupFeeder.feed()
+  augroup END
 endfunction
 
-
 "-----------------------------------------------------------------------------
-function! s:Mapper.unmap()
-  for key in self.keys
-    if key == ' '
-      execute 'iunmap <Space>'
-    else
-      execute 'iunmap ' . key
-    endif
-  endfor
-
-  let self.keys = []
+function! s:Disable()
+  autocmd! AutoComplPopGlobalAutoCommand
 endfunction
 
 
@@ -219,58 +198,51 @@ endfunction
 " OBJECT: PopupFeeder:  {{{1
 let s:PopupFeeder = { 'behavs' : [], 'lock_count' : 0 }
 "-----------------------------------------------------------------------------
-function! s:PopupFeeder.request_to_feed()
-  if self.lock_count != 0 || pumvisible()
-    return ''
+function! s:PopupFeeder.initialize()
+  let self.last_pos = []
+  call self.feed()
+endfunction
+
+"-----------------------------------------------------------------------------
+function! s:PopupFeeder.feed()
+  if exists('self.behavs[0]') && self.behavs[0].repeat
+    let self.behavs = (self.behavs[0].repeat ? [ self.behavs[0] ] : [])
+  elseif self.lock_count == 0 && !pumvisible() && self.last_pos != getpos('.')
+    let self.behavs = copy(exists('g:AutoComplPop_Behavior[&filetype]') ? g:AutoComplPop_Behavior[&filetype]
+          \                                                             : g:AutoComplPop_Behavior['*'])
+  else
+    let self.behavs = []
   endif
+
+  let self.last_pos = getpos('.')
+
+  let cur_text = strpart(getline('.'), 0, col('.') - 1)
+  call filter(self.behavs, 'cur_text =~ v:val.pattern && cur_text !~ v:val.excluded')
+
+  if empty(self.behavs)
+    call self.finish()
+    return
+  endif
+
+  " In case of dividing words by symbols while popup menu is visible,
+  " popup is not available unless input <C-e> or try popup once.
+  " (E.g. "for(int", "ab==cd") So duplicates first completion.
+  call insert(self.behavs, self.behavs[0])
 
   call s:OptionManager.set('completeopt', 'menuone' . (g:AutoComplPop_CompleteoptPreview ? ',preview' : ''))
   call s:OptionManager.set('complete', g:AutoComplPop_CompleteOption)
   call s:OptionManager.set('ignorecase', g:AutoComplPop_IgnoreCaseOption)
   "call s:OptionManager.set('lazyredraw', 0)
-  let s:req_popup = 1
-
-  augroup AutoComplPop_PopupFeeder
-    autocmd!
-    autocmd  InsertLeave  * call s:PopupFeeder.on_insert_leave()
-  augroup END
 
   " use <Plug> for silence instead of <C-r>
   inoremap <silent> <expr> <Plug>AutocomplpopOnPopupPost <SID>GetPopupFeeder().on_popup_post()
-
-  return printf("\<C-r>=%sGetPopupFeeder().feed(" .
-        \       "  copy(exists('g:AutoComplPop_Behavior[&filetype]') " .
-        \       "       ? g:AutoComplPop_Behavior[&filetype] " .
-        \       "       : g:AutoComplPop_Behavior['*']))\<CR>", s:GetSidPrefix())
-endfunction
-
-"-----------------------------------------------------------------------------
-function! s:PopupFeeder.feed(behavs)
-  " NOTE: CursorMovedI is not triggered while the pupup menu is visible. And
-  "       it will be triggered when pupup menu is disappeared.
-
-  let text = strpart(getline('.'), 0, col('.') - 1)
-  let self.behavs = filter(a:behavs, 'text =~ v:val.pattern && text !~ v:val.excluded')
-
-  if exists('self.behavs[0]')
-    " In case of dividing words by symbols while popup menu is visible,
-    " popup is not available unless input <C-e> or try popup once.
-    " (E.g. "for(int", "ab==cd") So duplicates first completion.
-    call insert(self.behavs, self.behavs[0])
-
-    "call feedkeys(self.behavs[0].command . "\<C-r>=s:PopupFeeder.on_popup_post()\<CR>", 'n')
-    call feedkeys(self.behavs[0].command . "\<Plug>AutocomplpopOnPopupPost", 'm')
-  else
-    call self.finish()
-  endif
-  return ''
+  call feedkeys(self.behavs[0].command . "\<Plug>AutocomplpopOnPopupPost", 'm')
 endfunction
 
 "-----------------------------------------------------------------------------
 function! s:PopupFeeder.finish()
-  autocmd! AutoComplPop_PopupFeeder
-  call s:OptionManager.restore_all()
   let self.behavs = []
+  call s:OptionManager.restore_all()
 endfunction
 
 "-----------------------------------------------------------------------------
@@ -288,27 +260,8 @@ function! s:PopupFeeder.unlock()
 endfunction
 
 "-----------------------------------------------------------------------------
-function! s:PopupFeeder.initialize_lock()
-  let self.lock_count = 0
-endfunction
-
-"-----------------------------------------------------------------------------
-function! s:PopupFeeder.on_insert_leave()
-  call self.finish()
-endfunction
-
-"-----------------------------------------------------------------------------
-function! s:PopupFeeder.on_cursor_moved_i_for_repeat()
-  autocmd! AutoComplPop_PopupFeeder CursorMovedI
-  call s:PopupFeeder.feed([ self.behavs[0] ])
-endfunction
-
-"-----------------------------------------------------------------------------
 function! s:PopupFeeder.on_popup_post()
   if pumvisible()
-    if self.behavs[0].repeat
-      autocmd AutoComplPop_PopupFeeder CursorMovedI * call s:PopupFeeder.on_cursor_moved_i_for_repeat()
-    endif
     " a command to restore to original text and select the first match
     return "\<C-p>\<Down>"
   elseif exists('self.behavs[1]')
@@ -345,16 +298,6 @@ endfunction
 "...........................................................................
 if !exists('g:AutoComplPop_NotEnableAtStartup')
   let g:AutoComplPop_NotEnableAtStartup = 0
-endif
-".........................................................................
-if !exists('g:AutoComplPop_MapList')
-  let g:AutoComplPop_MapList = [
-        \ 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
-        \ 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
-        \ 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
-        \ 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
-        \ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
-        \ ' ', '-', '_', '~', '^', '.', ',', ':', '!', '#', '=', '%', '$', '@', '<', '>', '/', '\', ]
 endif
 ".........................................................................
 if !exists('g:AutoComplPop_IgnoreCaseOption')
@@ -472,8 +415,8 @@ call extend(g:AutoComplPop_Behavior, {
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " INITIALIZATION: COMMANDS, AUTOCOMMANDS, MAPPINGS, ETC.: {{{1
-command! -bar -narg=0 AutoComplPopEnable  call s:Mapper.map(g:AutoComplPop_MapList) | call s:PopupFeeder.initialize_lock()
-command! -bar -narg=0 AutoComplPopDisable call s:Mapper.unmap()
+command! -bar -narg=0 AutoComplPopEnable  call s:Enable()
+command! -bar -narg=0 AutoComplPopDisable call s:Disable()
 command! -bar -narg=0 AutoComplPopLock    call s:PopupFeeder.lock()
 command! -bar -narg=0 AutoComplPopUnlock  call s:PopupFeeder.unlock()
 
@@ -484,5 +427,5 @@ endif
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " }}}1
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" vim:fdm=marker
+" vim: set fdm=marker:
 
