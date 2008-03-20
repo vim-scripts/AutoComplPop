@@ -3,7 +3,7 @@
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "
 " Author:       Takeshi Nishida <ns9tks(at)gmail.com>
-" Version:      2.0, for Vim 7.1
+" Version:      2.1, for Vim 7.1
 " Licence:      MIT Licence
 " URL:          http://www.vim.org/scripts/script.php?script_id=1879
 "
@@ -81,6 +81,12 @@
 "
 "-----------------------------------------------------------------------------
 " ChangeLog: {{{1
+"   2.1:
+"     - Fixed the problem caused by "." command in Normal mode.
+"     - Changed to map "i" and "R" to feed completion command after starting
+"       Insert mode.
+"     - Avoided the problem caused by Windows IME.
+"
 "   2.0:
 "     - Changed to use CursorMovedI event to feed a completion command instead
 "       of key mapping. Now the auto-popup is triggered by moving the cursor.
@@ -182,7 +188,7 @@ function! s:Enable()
   "       it will be triggered when pupup menu is disappeared.
 
   augroup AutoComplPopGlobalAutoCommand
-    autocmd InsertEnter  * call s:PopupFeeder.initialize()
+    autocmd InsertEnter  * let s:PopupFeeder.last_pos = [] | unlet s:PopupFeeder.last_pos
     autocmd InsertLeave  * call s:PopupFeeder.finish()
     autocmd CursorMovedI * call s:PopupFeeder.feed()
   augroup END
@@ -198,30 +204,23 @@ endfunction
 " OBJECT: PopupFeeder:  {{{1
 let s:PopupFeeder = { 'behavs' : [], 'lock_count' : 0 }
 "-----------------------------------------------------------------------------
-function! s:PopupFeeder.initialize()
-  let self.last_pos = []
-  call self.feed()
-endfunction
-
-"-----------------------------------------------------------------------------
 function! s:PopupFeeder.feed()
+  let cursor_moved = self.check_cursor_and_update()
   if exists('self.behavs[0]') && self.behavs[0].repeat
     let self.behavs = (self.behavs[0].repeat ? [ self.behavs[0] ] : [])
-  elseif self.lock_count == 0 && !pumvisible() && self.last_pos != getpos('.')
+  elseif cursor_moved
     let self.behavs = copy(exists('g:AutoComplPop_Behavior[&filetype]') ? g:AutoComplPop_Behavior[&filetype]
           \                                                             : g:AutoComplPop_Behavior['*'])
   else
     let self.behavs = []
   endif
 
-  let self.last_pos = getpos('.')
-
   let cur_text = strpart(getline('.'), 0, col('.') - 1)
   call filter(self.behavs, 'cur_text =~ v:val.pattern && cur_text !~ v:val.excluded')
 
   if empty(self.behavs)
     call self.finish()
-    return
+    return ''
   endif
 
   " In case of dividing words by symbols while popup menu is visible,
@@ -232,11 +231,10 @@ function! s:PopupFeeder.feed()
   call s:OptionManager.set('completeopt', 'menuone' . (g:AutoComplPop_CompleteoptPreview ? ',preview' : ''))
   call s:OptionManager.set('complete', g:AutoComplPop_CompleteOption)
   call s:OptionManager.set('ignorecase', g:AutoComplPop_IgnoreCaseOption)
-  "call s:OptionManager.set('lazyredraw', 0)
 
-  " use <Plug> for silence instead of <C-r>
-  inoremap <silent> <expr> <Plug>AutocomplpopOnPopupPost <SID>GetPopupFeeder().on_popup_post()
+  " use <Plug> for silence instead of <C-r>=
   call feedkeys(self.behavs[0].command . "\<Plug>AutocomplpopOnPopupPost", 'm')
+  return '' " for <C-r>=
 endfunction
 
 "-----------------------------------------------------------------------------
@@ -256,6 +254,19 @@ function! s:PopupFeeder.unlock()
   if self.lock_count < 0
     let self.lock_count = 0
     throw "autocomplpop.vim: not locked"
+  endif
+endfunction
+
+"-----------------------------------------------------------------------------
+function! s:PopupFeeder.check_cursor_and_update()
+  let prev_pos = (exists('self.last_pos') ? self.last_pos : [-1, -1, -1, -1])
+  let self.last_pos = getpos('.')
+
+  if has('multi_byte_ime')
+    return (prev_pos[1] != self.last_pos[1] || prev_pos[2] + 1 == self.last_pos[2] ||
+          \ prev_pos[2] > self.last_pos[2])
+  else
+    return (prev_pos != self.last_pos)
   endif
 endfunction
 
@@ -419,6 +430,11 @@ command! -bar -narg=0 AutoComplPopEnable  call s:Enable()
 command! -bar -narg=0 AutoComplPopDisable call s:Disable()
 command! -bar -narg=0 AutoComplPopLock    call s:PopupFeeder.lock()
 command! -bar -narg=0 AutoComplPopUnlock  call s:PopupFeeder.unlock()
+
+nnoremap <silent> i i<C-r>=<SID>GetPopupFeeder().feed()<CR>
+nnoremap <silent> R R<C-r>=<SID>GetPopupFeeder().feed()<CR>
+
+inoremap <silent> <expr> <Plug>AutocomplpopOnPopupPost <SID>GetPopupFeeder().on_popup_post()
 
 if !g:AutoComplPop_NotEnableAtStartup
   AutoComplPopEnable
