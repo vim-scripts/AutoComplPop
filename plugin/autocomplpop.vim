@@ -3,7 +3,7 @@
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 "
 " Author:       Takeshi Nishida <ns9tks(at)gmail.com>
-" Version:      2.1, for Vim 7.1
+" Version:      2.2, for Vim 7.1
 " Licence:      MIT Licence
 " URL:          http://www.vim.org/scripts/script.php?script_id=1879
 "
@@ -81,6 +81,10 @@
 "
 "-----------------------------------------------------------------------------
 " ChangeLog: {{{1
+"   2.2:
+"     - Changed not to work when 'paste' option is set.
+"     - Fixed AutoComplPopEnable command and AutoComplPopDisable command to
+"       map/unmap "i" and "R".
 "   2.1:
 "     - Fixed the problem caused by "." command in Normal mode.
 "     - Changed to map "i" and "R" to feed completion command after starting
@@ -192,11 +196,16 @@ function! s:Enable()
     autocmd InsertLeave  * call s:PopupFeeder.finish()
     autocmd CursorMovedI * call s:PopupFeeder.feed()
   augroup END
+
+  nnoremap <silent> i i<C-r>=<SID>GetPopupFeeder().feed()<CR>
+  nnoremap <silent> R R<C-r>=<SID>GetPopupFeeder().feed()<CR>
 endfunction
 
 "-----------------------------------------------------------------------------
 function! s:Disable()
   autocmd! AutoComplPopGlobalAutoCommand
+  nunmap i
+  nunmap R
 endfunction
 
 
@@ -205,10 +214,14 @@ endfunction
 let s:PopupFeeder = { 'behavs' : [], 'lock_count' : 0 }
 "-----------------------------------------------------------------------------
 function! s:PopupFeeder.feed()
+  if self.lock_count > 0 || &paste
+    return ''
+  endif
+
   let cursor_moved = self.check_cursor_and_update()
   if exists('self.behavs[0]') && self.behavs[0].repeat
     let self.behavs = (self.behavs[0].repeat ? [ self.behavs[0] ] : [])
-  elseif cursor_moved
+  elseif cursor_moved 
     let self.behavs = copy(exists('g:AutoComplPop_Behavior[&filetype]') ? g:AutoComplPop_Behavior[&filetype]
           \                                                             : g:AutoComplPop_Behavior['*'])
   else
@@ -430,9 +443,6 @@ command! -bar -narg=0 AutoComplPopEnable  call s:Enable()
 command! -bar -narg=0 AutoComplPopDisable call s:Disable()
 command! -bar -narg=0 AutoComplPopLock    call s:PopupFeeder.lock()
 command! -bar -narg=0 AutoComplPopUnlock  call s:PopupFeeder.unlock()
-
-nnoremap <silent> i i<C-r>=<SID>GetPopupFeeder().feed()<CR>
-nnoremap <silent> R R<C-r>=<SID>GetPopupFeeder().feed()<CR>
 
 inoremap <silent> <expr> <Plug>AutocomplpopOnPopupPost <SID>GetPopupFeeder().on_popup_post()
 
