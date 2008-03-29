@@ -1,26 +1,24 @@
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"=============================================================================
 " autocomplpop.vim - Automatically open the popup menu for completion.
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"=============================================================================
 "
 " Author:       Takeshi Nishida <ns9tks(at)gmail.com>
-" Version:      2.2, for Vim 7.1
+" Version:      2.3, for Vim 7.1
 " Licence:      MIT Licence
 " URL:          http://www.vim.org/scripts/script.php?script_id=1879
 "
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"=============================================================================
 " DOCUMENT: (Japanese: http://vim.g.hatena.ne.jp/keyword/autocomplpop.vim)
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" Description: {{{1
+"
+" Description: ---------------------------------------------------------- {{{1
 "   Install this plugin and your vim comes to automatically opens the popup
 "   menu for completion when you enter characters or move the cursor in Insert
 "   mode.
 "
-"-----------------------------------------------------------------------------
-" Installation: {{{1
+" Installation: --------------------------------------------------------- {{{1
 "   Drop this file in your plugin directory.
 "
-"-----------------------------------------------------------------------------
-" Usage: {{{1
+" Usage: ---------------------------------------------------------------- {{{1
 "   If this plugin has been installed, the auto-popup is enabled at startup by
 "   default.
 "
@@ -30,14 +28,18 @@
 "     1. The keyword completion is attempted if the text before the cursor
 "        consists of two keyword character.
 "     2. The keyword completion is attempted in Scheme file if the text before
-"        the cursor consists of '(' + a keyword character.
+"        the cursor consists of "(" + a keyword character.
 "     3. The filename completion is attempted if the text before the cursor
 "        consists of a filename character + a path separator + 0 or more
 "        filename characters.
 "     4. The omni completion is attempted in Ruby file if the text before the
-"        cursor consists of '.' or '::'. (Ruby interface is required.)
-"     5. The omni completion is attempted in HTML/XHTML file if the text
-"        before the cursor consists of '<' or '</'.
+"        cursor consists of "." or "::". (Ruby interface is required.)
+"     5. The omni completion is attempted in Python file if the text before
+"        the cursor consists of ".". (Python interface is required.)
+"     6. The omni completion is attempted in HTML/XHTML file if the text
+"        before the cursor consists of "<" or "</".
+"     7. The omni completion is attempted in CSS file if the text before the
+"        cursor consists of ":", ";", "{", "^", "@", or "!".
 "
 "   This behavior is customizable.
 "
@@ -47,8 +49,7 @@
 "     :AutoComplPopDisable
 "       - removes autocommands for the auto-popup.
 "
-"-----------------------------------------------------------------------------
-" Options: {{{1
+" Options: -------------------------------------------------------------- {{{1
 "   g:AutoComplPop_NotEnableAtStartup:
 "     The auto-popup is not enabled at startup if this is non-zero.
 "
@@ -75,12 +76,13 @@
 "       ['repeat']:
 "         It automatically repeats a completion if non-zero is set.
 "
-"-----------------------------------------------------------------------------
-" Thanks: {{{1
+" Thanks: --------------------------------------------------------------- {{{1
 "   vimtip #1386
 "
-"-----------------------------------------------------------------------------
-" ChangeLog: {{{1
+" ChangeLog: ------------------------------------------------------------ {{{1
+"   2.3:
+"     - Added a behavior for Python to support omni completion.
+"     - Added a behavior for CSS to support omni completion.
 "   2.2:
 "     - Changed not to work when 'paste' option is set.
 "     - Fixed AutoComplPopEnable command and AutoComplPopDisable command to
@@ -163,19 +165,20 @@
 "   0.1:
 "       - First release.
 "
-"-----------------------------------------------------------------------------
 " }}}1
+"=============================================================================
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" INCLUDE GUARD: {{{1
-if exists('loaded_autocomplpop') || v:version < 701
+" INCLUDE GUARD: ======================================================== {{{1
+if v:version < 701
+  echoerr "Sorry, Autocomplpop doesn't support this version of Vim."
+  finish
+elseif exists('loaded_autocomplpop')
   finish
 endif
 let loaded_autocomplpop = 1
 
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" FUNCTION: {{{1
+" FUNCTION: ============================================================= {{{1
 "-----------------------------------------------------------------------------
 function! s:GetSidPrefix()
   return matchstr(expand('<sfile>'), '<SNR>\d\+_')
@@ -209,8 +212,7 @@ function! s:Disable()
 endfunction
 
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" OBJECT: PopupFeeder:  {{{1
+" OBJECT: PopupFeeder: ================================================== {{{1
 let s:PopupFeeder = { 'behavs' : [], 'lock_count' : 0 }
 "-----------------------------------------------------------------------------
 function! s:PopupFeeder.feed()
@@ -299,8 +301,7 @@ function! s:PopupFeeder.on_popup_post()
 endfunction
 
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" OBJECT: OptionManager: sets or restores temporary options {{{1
+" OBJECT: OptionManager: sets or restores temporary options ============= {{{1
 let s:OptionManager = { 'originals' : {} }
 "-----------------------------------------------------------------------------
 function! s:OptionManager.set(name, value)
@@ -316,9 +317,9 @@ function! s:OptionManager.restore_all()
   let self.originals = {}
 endfunction
 
+" }}}1
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" INITIALIZATION: GLOBAL OPTIONS: {{{1
+" INITIALIZATION: GLOBAL OPTIONS: ======================================= {{{1
 "...........................................................................
 if !exists('g:AutoComplPop_NotEnableAtStartup')
   let g:AutoComplPop_NotEnableAtStartup = 0
@@ -375,16 +376,10 @@ call extend(g:AutoComplPop_Behavior, {
       \       'repeat'   : 0,
       \     },
       \   ],
-      \   'scheme' : [
+      \   'python' : [
       \     {
       \       'command'  : "\<C-n>",
       \       'pattern'  : '\k\k$',
-      \       'excluded' : '^$',
-      \       'repeat'   : 0,
-      \     },
-      \     {
-      \       'command'  : "\<C-n>",
-      \       'pattern'  : '(\k$',
       \       'excluded' : '^$',
       \       'repeat'   : 0,
       \     },
@@ -393,6 +388,12 @@ call extend(g:AutoComplPop_Behavior, {
       \       'pattern'  : (has('win32') || has('win64') ? '\f[/\\]\f*$' : '\f[/]\f*$'),
       \       'excluded' : '[*/\\][/\\]\f*$\|[^[:print:]]\f*$',
       \       'repeat'   : 1,
+      \     },
+      \     {
+      \       'command'  : "\<C-x>\<C-o>",
+      \       'pattern'  : '\k\.$',
+      \       'excluded' : (has('python') ? '^$' : '.*'),
+      \       'repeat'   : 0,
       \     },
       \   ],
       \   'html' : [
@@ -435,10 +436,49 @@ call extend(g:AutoComplPop_Behavior, {
       \       'repeat'   : 1,
       \     },
       \   ],
+      \   'css' : [
+      \     {
+      \       'command'  : "\<C-n>",
+      \       'pattern'  : '\k\k$',
+      \       'excluded' : '^$',
+      \       'repeat'   : 0,
+      \     },
+      \     {
+      \       'command'  : "\<C-x>\<C-f>",
+      \       'pattern'  : (has('win32') || has('win64') ? '\f[/\\]\f*$' : '\f[/]\f*$'),
+      \       'excluded' : '[*/\\][/\\]\f*$\|[^[:print:]]\f*$',
+      \       'repeat'   : 1,
+      \     },
+      \     {
+      \       'command'  : "\<C-x>\<C-o>",
+      \       'pattern'  : '[:;{^@!]\s\?$',
+      \       'excluded' : '^$',
+      \       'repeat'   : 0,
+      \     },
+      \   ],
+      \   'scheme' : [
+      \     {
+      \       'command'  : "\<C-n>",
+      \       'pattern'  : '\k\k$',
+      \       'excluded' : '^$',
+      \       'repeat'   : 0,
+      \     },
+      \     {
+      \       'command'  : "\<C-n>",
+      \       'pattern'  : '(\k$',
+      \       'excluded' : '^$',
+      \       'repeat'   : 0,
+      \     },
+      \     {
+      \       'command'  : "\<C-x>\<C-f>",
+      \       'pattern'  : (has('win32') || has('win64') ? '\f[/\\]\f*$' : '\f[/]\f*$'),
+      \       'excluded' : '[*/\\][/\\]\f*$\|[^[:print:]]\f*$',
+      \       'repeat'   : 1,
+      \     },
+      \   ],
       \ } ,'keep')
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
-" INITIALIZATION: COMMANDS, AUTOCOMMANDS, MAPPINGS, ETC.: {{{1
+" INITIALIZATION: COMMANDS, AUTOCOMMANDS, MAPPINGS, ETC.: =============== {{{1
 command! -bar -narg=0 AutoComplPopEnable  call s:Enable()
 command! -bar -narg=0 AutoComplPopDisable call s:Disable()
 command! -bar -narg=0 AutoComplPopLock    call s:PopupFeeder.lock()
@@ -450,8 +490,6 @@ if !g:AutoComplPop_NotEnableAtStartup
   AutoComplPopEnable
 endif
 
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " }}}1
-""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+"=============================================================================
 " vim: set fdm=marker:
-
