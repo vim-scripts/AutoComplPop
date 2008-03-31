@@ -2,10 +2,12 @@
 " autocomplpop.vim - Automatically open the popup menu for completion.
 "=============================================================================
 "
-" Author:       Takeshi Nishida <ns9tks(at)gmail.com>
-" Version:      2.3, for Vim 7.1
-" Licence:      MIT Licence
-" URL:          http://www.vim.org/scripts/script.php?script_id=1879
+" Author:  Takeshi Nishida <ns9tks(at)gmail.com>
+" Version: 2.3.1, for Vim 7.1
+" Licence: MIT Licence
+" URL:     http://www.vim.org/scripts/script.php?script_id=1879
+"
+" GetLatestVimScripts: 1879 1 :AutoInstall: autocomplpop.vim
 "
 "=============================================================================
 " DOCUMENT: (Japanese: http://vim.g.hatena.ne.jp/keyword/autocomplpop.vim)
@@ -39,7 +41,8 @@
 "     6. The omni completion is attempted in HTML/XHTML file if the text
 "        before the cursor consists of "<" or "</".
 "     7. The omni completion is attempted in CSS file if the text before the
-"        cursor consists of ":", ";", "{", "^", "@", or "!".
+"        cursor consists of ":", ";", "{", "@", "!", or in the start of line
+"        with blank characters and keyword characters.
 "
 "   This behavior is customizable.
 "
@@ -80,13 +83,21 @@
 "   vimtip #1386
 "
 " ChangeLog: ------------------------------------------------------------ {{{1
+"   2.3.1:
+"     - Changed to set 'lazyredraw' while a popup menu is visible to avoid
+"       flickering.
+"     - Changed a behavior for CSS.
+"     - Added support for GetLatestVimScripts.
+"
 "   2.3:
 "     - Added a behavior for Python to support omni completion.
 "     - Added a behavior for CSS to support omni completion.
+"
 "   2.2:
 "     - Changed not to work when 'paste' option is set.
 "     - Fixed AutoComplPopEnable command and AutoComplPopDisable command to
 "       map/unmap "i" and "R".
+"
 "   2.1:
 "     - Fixed the problem caused by "." command in Normal mode.
 "     - Changed to map "i" and "R" to feed completion command after starting
@@ -246,6 +257,7 @@ function! s:PopupFeeder.feed()
   call s:OptionManager.set('completeopt', 'menuone' . (g:AutoComplPop_CompleteoptPreview ? ',preview' : ''))
   call s:OptionManager.set('complete', g:AutoComplPop_CompleteOption)
   call s:OptionManager.set('ignorecase', g:AutoComplPop_IgnoreCaseOption)
+  call s:OptionManager.set('lazyredraw', 1)
 
   " use <Plug> for silence instead of <C-r>=
   call feedkeys(self.behavs[0].command . "\<Plug>AutocomplpopOnPopupPost", 'm')
@@ -451,9 +463,9 @@ call extend(g:AutoComplPop_Behavior, {
       \     },
       \     {
       \       'command'  : "\<C-x>\<C-o>",
-      \       'pattern'  : '[:;{^@!]\s\?$',
+      \       'pattern'  : '[:@!]\s*\k*$\|\(^\|[;{]\)\s\+\k\+$',
       \       'excluded' : '^$',
-      \       'repeat'   : 0,
+      \       'repeat'   : 1,
       \     },
       \   ],
       \   'scheme' : [
