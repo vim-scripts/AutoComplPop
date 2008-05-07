@@ -3,7 +3,7 @@
 "=============================================================================
 "
 " Author:  Takeshi Nishida <ns9tks(at)gmail.com>
-" Version: 2.3.1, for Vim 7.1
+" Version: 2.4, for Vim 7.1
 " Licence: MIT Licence
 " URL:     http://www.vim.org/scripts/script.php?script_id=1879
 "
@@ -56,6 +56,11 @@
 "   g:AutoComplPop_NotEnableAtStartup:
 "     The auto-popup is not enabled at startup if this is non-zero.
 "
+"   g:AutoComplPop_MappingDriven:
+"     The auto-popup is triggered by key mappings instead of CursorMovedI
+"     event if non-zero is set. This is useful to avoid auto-popup by moving
+"     cursor in Insert mode.
+"
 "   g:AutoComplPop_IgnoreCaseOption
 "     This is set to 'ignorecase' when the popup menu is opened.
 "
@@ -83,6 +88,9 @@
 "   vimtip #1386
 "
 " ChangeLog: ------------------------------------------------------------ {{{1
+"   2.4:
+"     - Added g:AutoComplPop_MappingDriven option.
+"
 "   2.3.1:
 "     - Changed to set 'lazyredraw' while a popup menu is visible to avoid
 "       flickering.
@@ -202,24 +210,34 @@ endfunction
 
 "-----------------------------------------------------------------------------
 function! s:Enable()
-  " NOTE: CursorMovedI is not triggered while the pupup menu is visible. And
-  "       it will be triggered when pupup menu is disappeared.
+  call s:Disable()
 
   augroup AutoComplPopGlobalAutoCommand
-    autocmd InsertEnter  * let s:PopupFeeder.last_pos = [] | unlet s:PopupFeeder.last_pos
-    autocmd InsertLeave  * call s:PopupFeeder.finish()
-    autocmd CursorMovedI * call s:PopupFeeder.feed()
+    autocmd!
+    autocmd InsertEnter * let s:PopupFeeder.last_pos = [] | unlet s:PopupFeeder.last_pos
+    autocmd InsertLeave * call s:PopupFeeder.finish()
   augroup END
 
+  if g:AutoComplPop_MappingDriven
+    call s:FeedMapping.map()
+  else
+    autocmd AutoComplPopGlobalAutoCommand CursorMovedI * call s:PopupFeeder.feed()
+  endif
+
   nnoremap <silent> i i<C-r>=<SID>GetPopupFeeder().feed()<CR>
+  nnoremap <silent> a a<C-r>=<SID>GetPopupFeeder().feed()<CR>
   nnoremap <silent> R R<C-r>=<SID>GetPopupFeeder().feed()<CR>
 endfunction
 
 "-----------------------------------------------------------------------------
 function! s:Disable()
-  autocmd! AutoComplPopGlobalAutoCommand
-  nunmap i
-  nunmap R
+  call s:FeedMapping.unmap()
+  augroup AutoComplPopGlobalAutoCommand
+    autocmd!
+  augroup END
+  nnoremap i <Nop> | nunmap i
+  nnoremap a <Nop> | nunmap a
+  nnoremap R <Nop> | nunmap R
 endfunction
 
 
@@ -227,7 +245,10 @@ endfunction
 let s:PopupFeeder = { 'behavs' : [], 'lock_count' : 0 }
 "-----------------------------------------------------------------------------
 function! s:PopupFeeder.feed()
-  if self.lock_count > 0 || &paste
+  " NOTE: CursorMovedI is not triggered while the pupup menu is visible. And
+  "       it will be triggered when pupup menu is disappeared.
+
+  if self.lock_count > 0 || pumvisible() || &paste
     return ''
   endif
 
@@ -249,7 +270,7 @@ function! s:PopupFeeder.feed()
     return ''
   endif
 
-  " In case of dividing words by symbols while popup menu is visible,
+  " In case of dividing words by symbols while a popup menu is visible,
   " popup is not available unless input <C-e> or try popup once.
   " (E.g. "for(int", "ab==cd") So duplicates first completion.
   call insert(self.behavs, self.behavs[0])
@@ -257,7 +278,9 @@ function! s:PopupFeeder.feed()
   call s:OptionManager.set('completeopt', 'menuone' . (g:AutoComplPop_CompleteoptPreview ? ',preview' : ''))
   call s:OptionManager.set('complete', g:AutoComplPop_CompleteOption)
   call s:OptionManager.set('ignorecase', g:AutoComplPop_IgnoreCaseOption)
-  call s:OptionManager.set('lazyredraw', 1)
+  call s:OptionManager.set('lazyredraw', !g:AutoComplPop_MappingDriven)
+  " NOTE: With CursorMovedI driven, Set 'lazyredraw' to avoid flickering.
+  "       With Mapping driven, set 'nolazyredraw' to make a popup menu visible.
 
   " use <Plug> for silence instead of <C-r>=
   call feedkeys(self.behavs[0].command . "\<Plug>AutocomplpopOnPopupPost", 'm')
@@ -329,12 +352,49 @@ function! s:OptionManager.restore_all()
   let self.originals = {}
 endfunction
 
+
+" OBJECT: FeedMapping: manages global mappings ========================== {{{1
+let s:FeedMapping = { 'keys' :  [] }
+"-----------------------------------------------------------------------------
+function! s:FeedMapping.map()
+  call self.unmap()
+
+  let self.keys = [
+        \ 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+        \ 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+        \ 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+        \ 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+        \ '0', '1', '2', '3', '4', '5', '6', '7', '8', '9',
+        \ '-', '_', '~', '^', '.', ',', ':', '!', '#', '=', '%', '$', '@', '<', '>', '/', '\',
+        \ '<Space>', '<C-h>', '<BS>', ]
+
+  for key in self.keys
+    execute printf('inoremap <silent> %s %s<C-r>=<SID>GetPopupFeeder().feed()<CR>',
+          \        key, key)
+  endfor
+endfunction
+
+
+"-----------------------------------------------------------------------------
+function! s:FeedMapping.unmap()
+  for key in self.keys
+    execute 'iunmap ' . key
+  endfor
+
+  let self.keys = []
+endfunction
+
+
 " }}}1
 
 " INITIALIZATION: GLOBAL OPTIONS: ======================================= {{{1
 "...........................................................................
 if !exists('g:AutoComplPop_NotEnableAtStartup')
   let g:AutoComplPop_NotEnableAtStartup = 0
+endif
+"...........................................................................
+if !exists('g:AutoComplPop_MappingDriven')
+  let g:AutoComplPop_MappingDriven = 0
 endif
 ".........................................................................
 if !exists('g:AutoComplPop_IgnoreCaseOption')
