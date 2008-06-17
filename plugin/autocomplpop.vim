@@ -2,8 +2,8 @@
 " autocomplpop.vim - Automatically open the popup menu for completion.
 "=============================================================================
 "
-" Author:  Takeshi Nishida <ns9tks(at)gmail.com>
-" Version: 2.4, for Vim 7.1
+" Author:  Takeshi NISHIDA <ns9tks@DELETE-ME.gmail.com>
+" Version: 2.5, for Vim 7.1
 " Licence: MIT Licence
 " URL:     http://www.vim.org/scripts/script.php?script_id=1879
 "
@@ -29,18 +29,16 @@
 "
 "     1. The keyword completion is attempted if the text before the cursor
 "        consists of two keyword character.
-"     2. The keyword completion is attempted in Scheme file if the text before
-"        the cursor consists of "(" + a keyword character.
-"     3. The filename completion is attempted if the text before the cursor
+"     2. The filename completion is attempted if the text before the cursor
 "        consists of a filename character + a path separator + 0 or more
 "        filename characters.
-"     4. The omni completion is attempted in Ruby file if the text before the
+"     3. The omni completion is attempted in Ruby file if the text before the
 "        cursor consists of "." or "::". (Ruby interface is required.)
-"     5. The omni completion is attempted in Python file if the text before
+"     4. The omni completion is attempted in Python file if the text before
 "        the cursor consists of ".". (Python interface is required.)
-"     6. The omni completion is attempted in HTML/XHTML file if the text
+"     5. The omni completion is attempted in HTML/XHTML file if the text
 "        before the cursor consists of "<" or "</".
-"     7. The omni completion is attempted in CSS file if the text before the
+"     6. The omni completion is attempted in CSS file if the text before the
 "        cursor consists of ":", ";", "{", "@", "!", or in the start of line
 "        with blank characters and keyword characters.
 "
@@ -54,7 +52,7 @@
 "
 " Options: -------------------------------------------------------------- {{{1
 "   g:AutoComplPop_NotEnableAtStartup:
-"     The auto-popup is not enabled at startup if this is non-zero.
+"     The auto-popup is not enabled at startup if non-zero is set.
 "
 "   g:AutoComplPop_MappingDriven:
 "     The auto-popup is triggered by key mappings instead of CursorMovedI
@@ -68,12 +66,53 @@
 "     This is set to 'complete' when the popup menu is opened.
 "
 "   g:AutoComplPop_CompleteoptPreview:
-"     If this is non-zero, 'preview' is added to 'completeopt' when the popup
+"     If non-zero is set, 'preview' is added to 'completeopt' when the popup
 "     menu is opened.
 "
+"   g:AutoComplPop_BehaviorKeywordLength:
+"     This is the length of keyword characters before the cursor which are
+"     needed to attempt the keyword completion. If negative value is set, it
+"     will never attempt this completion.
+"
+"   g:AutoComplPop_BehaviorFileLength:
+"     This is the length of filename characters before the cursor which are
+"     needed to attempt the filename completion. If negative value is set, it
+"     will never attempt this completion.
+"
+"   g:AutoComplPop_BehaviorRubyOmniMethodLength:
+"     This is the length of keyword characters before the cursor which are
+"     needed to attempt the ruby omni-completion for methods. If negative
+"     value is set, it will never attempt this completion.
+"
+"   g:AutoComplPop_BehaviorRubyOmniSymbolLength:
+"     This is the length of keyword characters before the cursor which are
+"     needed to attempt the ruby omni-completion for symbols. If negative
+"     value is set, it will never attempt this completion.
+"
+"   g:AutoComplPop_BehaviorPythonOmniLength:
+"     This is the length of keyword characters before the cursor which are
+"     needed to attempt the python omni-completion. If negative value is set,
+"     it will never attempt this completion.
+"
+"   g:AutoComplPop_BehaviorHtmlOmniLength:
+"     This is the length of keyword characters before the cursor which are
+"     needed to attempt the HTML omni-completion. If negative value is set, it
+"     will never attempt this completion.
+"
+"   g:AutoComplPop_BehaviorCssOmniPropertyLength:
+"     This is the length of keyword characters before the cursor which are
+"     needed to attempt the CSS omni-completion for properties. If negative
+"     value is set, it will never attempt this completion.
+"
+"   g:AutoComplPop_BehaviorCssOmniValueLength:
+"     This is the length of keyword characters before the cursor which are
+"     needed to attempt the CSS omni-completion for values. If negative value
+"     is set, it will never attempt this completion.
+"
 "   g:AutoComplPop_Behavior:
-"     This is a dictionary. Each key corresponds to a filetype. '*' is
-"     default. Each value is a list. These are attempted in sequence until
+"     This option is for advanced users. This setting overrides other behavior
+"     options. This is a dictionary. Each key corresponds to a filetype. '*'
+"     is default. Each value is a list. These are attempted in sequence until
 "     completion item is found. Each element is a dictionary which has
 "     following items:
 "       ['command']:
@@ -88,6 +127,17 @@
 "   vimtip #1386
 "
 " ChangeLog: ------------------------------------------------------------ {{{1
+"   2.5:
+"     - Added some options to customize behavior easily:
+"         g:AutoComplPop_BehaviorKeywordLength
+"         g:AutoComplPop_BehaviorFileLength
+"         g:AutoComplPop_BehaviorRubyOmniMethodLength
+"         g:AutoComplPop_BehaviorRubyOmniSymbolLength
+"         g:AutoComplPop_BehaviorPythonOmniLength
+"         g:AutoComplPop_BehaviorHtmlOmniLength
+"         g:AutoComplPop_BehaviorCssOmniPropertyLength
+"         g:AutoComplPop_BehaviorCssOmniValueLength
+"
 "   2.4:
 "     - Added g:AutoComplPop_MappingDriven option.
 "
@@ -198,6 +248,7 @@ let loaded_autocomplpop = 1
 
 
 " FUNCTION: ============================================================= {{{1
+
 "-----------------------------------------------------------------------------
 function! s:GetSidPrefix()
   return matchstr(expand('<sfile>'), '<SNR>\d\+_')
@@ -241,6 +292,94 @@ function! s:Disable()
 endfunction
 
 
+" FUNCTION: BEHAVIOR ==================================================== {{{1
+
+"-----------------------------------------------------------------------------
+function! s:MakeDefaultBehavior()
+  let behavs = {
+        \   '*'      : [],
+        \   'ruby'   : [],
+        \   'python' : [],
+        \   'html'   : [],
+        \   'xhtml'  : [],
+        \   'css'    : [],
+        \ }
+
+  if g:AutoComplPop_BehaviorKeywordLength >= 0
+    for key in keys(behavs)
+      call add(behavs[key], {
+            \   'command'  : "\<C-n>",
+            \   'pattern'  : printf('\k\{%d,}$', g:AutoComplPop_BehaviorKeywordLength),
+            \   'repeat'   : 0,
+            \ })
+    endfor
+  endif
+
+  if g:AutoComplPop_BehaviorFileLength >= 0
+    for key in keys(behavs)
+      call add(behavs[key], {
+            \   'command'  : "\<C-x>\<C-f>",
+            \   'pattern'  : printf('\f[%s]\f\{%d,}$', (has('win32') || has('win64') ? '/\\' : '/'),
+            \                       g:AutoComplPop_BehaviorFileLength),
+            \   'excluded' : '[*/\\][/\\]\f*$\|[^[:print:]]\f*$',
+            \   'repeat'   : 1,
+            \ })
+    endfor
+  endif
+
+  if has('ruby') && g:AutoComplPop_BehaviorRubyOmniMethodLength >= 0
+    call add(behavs.ruby, {
+          \   'command'  : "\<C-x>\<C-o>",
+          \   'pattern'  : printf('[^. \t]\(\.\|::\)\k\{%d,}$', g:AutoComplPop_BehaviorRubyOmniMethodLength),
+          \   'repeat'   : 0,
+          \ })
+  endif
+
+  if has('ruby') && g:AutoComplPop_BehaviorRubyOmniSymbolLength >= 0
+    call add(behavs.ruby, {
+          \   'command'  : "\<C-x>\<C-o>",
+          \   'pattern'  : printf('\(^\|[^:]\):\k\{%d,}$', g:AutoComplPop_BehaviorRubyOmniSymbolLength),
+          \   'repeat'   : 0,
+          \ })
+  endif
+
+  if has('python') && g:AutoComplPop_BehaviorPythonOmniLength >= 0
+    call add(behavs.python, {
+          \   'command'  : "\<C-x>\<C-o>",
+          \   'pattern'  : printf('\k\.\k\{%d,}$', g:AutoComplPop_BehaviorPythonOmniLength),
+          \   'repeat'   : 0,
+          \ })
+  endif
+
+  if g:AutoComplPop_BehaviorHtmlOmniLength >= 0
+    let behav_html = {
+          \   'command'  : "\<C-x>\<C-o>",
+          \   'pattern'  : printf('\(<\|<\/\|<[^>]* \)\k\{%d,}$', g:AutoComplPop_BehaviorHtmlOmniLength),
+          \   'repeat'   : 1,
+          \ }
+    call add(behavs.html , behav_html)
+    call add(behavs.xhtml, behav_html)
+  endif
+
+  if g:AutoComplPop_BehaviorCssOmniPropertyLength >= 0
+    call add(behavs.css, {
+          \   'command'  : "\<C-x>\<C-o>",
+          \   'pattern'  : printf('\(^\s\|[;{]\)\s*\k\{%d,}$', g:AutoComplPop_BehaviorCssOmniPropertyLength),
+          \   'repeat'   : 0,
+          \ })
+  endif
+
+  if g:AutoComplPop_BehaviorCssOmniValueLength >= 0
+    call add(behavs.css, {
+          \   'command'  : "\<C-x>\<C-o>",
+          \   'pattern'  : printf('[:@!]\s*\k\{%d,}$', g:AutoComplPop_BehaviorCssOmniValueLength),
+          \   'repeat'   : 0,
+          \ })
+  endif
+
+  return behavs
+endfunction
+
 " OBJECT: PopupFeeder: ================================================== {{{1
 let s:PopupFeeder = { 'behavs' : [], 'lock_count' : 0 }
 "-----------------------------------------------------------------------------
@@ -263,7 +402,7 @@ function! s:PopupFeeder.feed()
   endif
 
   let cur_text = strpart(getline('.'), 0, col('.') - 1)
-  call filter(self.behavs, 'cur_text =~ v:val.pattern && cur_text !~ v:val.excluded')
+  call filter(self.behavs, 'cur_text =~ v:val.pattern && (!exists(''v:val.excluded'') || cur_text !~ v:val.excluded)')
 
   if empty(self.behavs)
     call self.finish()
@@ -387,7 +526,7 @@ endfunction
 
 " }}}1
 
-" INITIALIZATION: GLOBAL OPTIONS: ======================================= {{{1
+" GLOBAL OPTIONS: ======================================================= {{{1
 "...........................................................................
 if !exists('g:AutoComplPop_NotEnableAtStartup')
   let g:AutoComplPop_NotEnableAtStartup = 0
@@ -404,153 +543,50 @@ endif
 if !exists('g:AutoComplPop_CompleteOption')
   let g:AutoComplPop_CompleteOption = '.,w,b,k'
 endif
-
 ".........................................................................
 if !exists('g:AutoComplPop_CompleteoptPreview')
   let g:AutoComplPop_CompleteoptPreview = 0
 endif
 ".........................................................................
+if !exists('g:AutoComplPop_BehaviorKeywordLength')
+  let g:AutoComplPop_BehaviorKeywordLength = 2
+endif
+".........................................................................
+if !exists('g:AutoComplPop_BehaviorFileLength')
+  let g:AutoComplPop_BehaviorFileLength = 0
+endif
+".........................................................................
+if !exists('g:AutoComplPop_BehaviorRubyOmniMethodLength')
+  let g:AutoComplPop_BehaviorRubyOmniMethodLength = 0
+endif
+".........................................................................
+if !exists('g:AutoComplPop_BehaviorRubyOmniSymbolLength')
+  let g:AutoComplPop_BehaviorRubyOmniSymbolLength = 1
+endif
+".........................................................................
+if !exists('g:AutoComplPop_BehaviorPythonOmniLength')
+  let g:AutoComplPop_BehaviorPythonOmniLength = 0
+endif
+".........................................................................
+if !exists('g:AutoComplPop_BehaviorHtmlOmniLength')
+  let g:AutoComplPop_BehaviorHtmlOmniLength = 0
+endif
+".........................................................................
+if !exists('g:AutoComplPop_BehaviorCssOmniPropertyLength')
+  let g:AutoComplPop_BehaviorCssOmniPropertyLength = 1
+endif
+".........................................................................
+if !exists('g:AutoComplPop_BehaviorCssOmniValueLength')
+  let g:AutoComplPop_BehaviorCssOmniValueLength = 0
+endif
+".........................................................................
 if !exists('g:AutoComplPop_Behavior')
   let g:AutoComplPop_Behavior = {}
 endif
-call extend(g:AutoComplPop_Behavior, {
-      \   '*' : [
-      \     {
-      \       'command'  : "\<C-n>",
-      \       'pattern'  : '\k\k$',
-      \       'excluded' : '^$',
-      \       'repeat'   : 0,
-      \     },
-      \     {
-      \       'command'  : "\<C-x>\<C-f>",
-      \       'pattern'  : (has('win32') || has('win64') ? '\f[/\\]\f*$' : '\f[/]\f*$'),
-      \       'excluded' : '[*/\\][/\\]\f*$\|[^[:print:]]\f*$',
-      \       'repeat'   : 1,
-      \     },
-      \   ],
-      \   'ruby' : [
-      \     {
-      \       'command'  : "\<C-n>",
-      \       'pattern'  : '\k\k$',
-      \       'excluded' : '^$',
-      \       'repeat'   : 0,
-      \     },
-      \     {
-      \       'command'  : "\<C-x>\<C-f>",
-      \       'pattern'  : (has('win32') || has('win64') ? '\f[/\\]\f*$' : '\f[/]\f*$'),
-      \       'excluded' : '[*/\\][/\\]\f*$\|[^[:print:]]\f*$',
-      \       'repeat'   : 1,
-      \     },
-      \     {
-      \       'command'  : "\<C-x>\<C-o>",
-      \       'pattern'  : '\([^. \t]\.\|^:\|\W:\)$',
-      \       'excluded' : (has('ruby') ? '^$' : '.*'),
-      \       'repeat'   : 0,
-      \     },
-      \   ],
-      \   'python' : [
-      \     {
-      \       'command'  : "\<C-n>",
-      \       'pattern'  : '\k\k$',
-      \       'excluded' : '^$',
-      \       'repeat'   : 0,
-      \     },
-      \     {
-      \       'command'  : "\<C-x>\<C-f>",
-      \       'pattern'  : (has('win32') || has('win64') ? '\f[/\\]\f*$' : '\f[/]\f*$'),
-      \       'excluded' : '[*/\\][/\\]\f*$\|[^[:print:]]\f*$',
-      \       'repeat'   : 1,
-      \     },
-      \     {
-      \       'command'  : "\<C-x>\<C-o>",
-      \       'pattern'  : '\k\.$',
-      \       'excluded' : (has('python') ? '^$' : '.*'),
-      \       'repeat'   : 0,
-      \     },
-      \   ],
-      \   'html' : [
-      \     {
-      \       'command'  : "\<C-n>",
-      \       'pattern'  : '\k\k$',
-      \       'excluded' : '^$',
-      \       'repeat'   : 0,
-      \     },
-      \     {
-      \       'command'  : "\<C-x>\<C-f>",
-      \       'pattern'  : (has('win32') || has('win64') ? '\f[/\\]\f*$' : '\f[/]\f*$'),
-      \       'excluded' : '[*/\\][/\\]\f*$\|[^[:print:]]\f*$',
-      \       'repeat'   : 1,
-      \     },
-      \     {
-      \       'command'  : "\<C-x>\<C-o>",
-      \       'pattern'  : '\(<\k*\|<\/\k*\|<[^>]* \)$',
-      \       'excluded' : '^$',
-      \       'repeat'   : 1,
-      \     },
-      \   ],
-      \   'xhtml' : [
-      \     {
-      \       'command'  : "\<C-n>",
-      \       'pattern'  : '\k\k$',
-      \       'excluded' : '^$',
-      \       'repeat'   : 0,
-      \     },
-      \     {
-      \       'command'  : "\<C-x>\<C-f>",
-      \       'pattern'  : (has('win32') || has('win64') ? '\f[/\\]\f*$' : '\f[/]\f*$'),
-      \       'excluded' : '[*/\\][/\\]\f*$\|[^[:print:]]\f*$',
-      \       'repeat'   : 1,
-      \     },
-      \     {
-      \       'command'  : "\<C-x>\<C-o>",
-      \       'pattern'  : '\(<\k*\|<\/\k*\|<[^>]* \)$',
-      \       'excluded' : '^$',
-      \       'repeat'   : 1,
-      \     },
-      \   ],
-      \   'css' : [
-      \     {
-      \       'command'  : "\<C-n>",
-      \       'pattern'  : '\k\k$',
-      \       'excluded' : '^$',
-      \       'repeat'   : 0,
-      \     },
-      \     {
-      \       'command'  : "\<C-x>\<C-f>",
-      \       'pattern'  : (has('win32') || has('win64') ? '\f[/\\]\f*$' : '\f[/]\f*$'),
-      \       'excluded' : '[*/\\][/\\]\f*$\|[^[:print:]]\f*$',
-      \       'repeat'   : 1,
-      \     },
-      \     {
-      \       'command'  : "\<C-x>\<C-o>",
-      \       'pattern'  : '[:@!]\s*\k*$\|\(^\|[;{]\)\s\+\k\+$',
-      \       'excluded' : '^$',
-      \       'repeat'   : 1,
-      \     },
-      \   ],
-      \   'scheme' : [
-      \     {
-      \       'command'  : "\<C-n>",
-      \       'pattern'  : '\k\k$',
-      \       'excluded' : '^$',
-      \       'repeat'   : 0,
-      \     },
-      \     {
-      \       'command'  : "\<C-n>",
-      \       'pattern'  : '(\k$',
-      \       'excluded' : '^$',
-      \       'repeat'   : 0,
-      \     },
-      \     {
-      \       'command'  : "\<C-x>\<C-f>",
-      \       'pattern'  : (has('win32') || has('win64') ? '\f[/\\]\f*$' : '\f[/]\f*$'),
-      \       'excluded' : '[*/\\][/\\]\f*$\|[^[:print:]]\f*$',
-      \       'repeat'   : 1,
-      \     },
-      \   ],
-      \ } ,'keep')
+call extend(g:AutoComplPop_Behavior, s:MakeDefaultBehavior(), 'keep')
 
-" INITIALIZATION: COMMANDS, AUTOCOMMANDS, MAPPINGS, ETC.: =============== {{{1
+
+" COMMANDS/AUTOCOMMANDS/MAPPINGS/ETC.: ================================== {{{1
 command! -bar -narg=0 AutoComplPopEnable  call s:Enable()
 command! -bar -narg=0 AutoComplPopDisable call s:Disable()
 command! -bar -narg=0 AutoComplPopLock    call s:PopupFeeder.lock()
