@@ -119,6 +119,20 @@ OPTIONS                                                          *acp-options*
 <
         If non-zero, "preview" is added to 'completeopt' when auto-popup.
 
+                                             *g:acp_behaviorUserDefinedFunction*  >
+  let g:acp_behaviorUserDefinedFunction = ''
+<
+        Function for user-defined completion. If empty, this completion will
+        be never attempted.
+
+        See also:|complete-functions|
+
+                                             *g:acp_behaviorUserDefinedPattern*  >
+  let g:acp_behaviorUserDefinedPattern = '\k$'
+<
+        Pattern before a cursor, which are needed to attempt user-defined
+        completion.
+
                                              *g:acp_behaviorKeywordCommand*  >
   let g:acp_behaviorKeywordCommand = "\<C-p>"
 <
@@ -128,58 +142,58 @@ OPTIONS                                                          *acp-options*
                                               *g:acp_behaviorKeywordLength*  >
   let g:acp_behaviorKeywordLength = 2
 <
-        Length of keyword characters before the cursor, which are needed to
-        attempt the keyword completion. If negative value, it will never
-        attempt this completion.
+        Length of keyword characters before a cursor, which are needed to
+        attempt keyword completion. If negative value, this completion will be
+        never attempted.
 
                                                  *g:acp_behaviorFileLength*  >
   let g:acp_behaviorFileLength = 0
 <
-        Length of filename characters before the cursor, which are needed to
-        attempt the filename completion. If negative value, it will never
-        attempt this completion.
+        Length of filename characters before a cursor, which are needed to
+        attempt filename completion. If negative value, this completion will
+        be never attempted.
 
                                        *g:acp_behaviorRubyOmniMethodLength*  >
   let g:acp_behaviorRubyOmniMethodLength = 0
 <
-        Length of keyword characters before the cursor, which are needed to
-        attempt the ruby omni-completion for methods. If negative value, it
-        will never attempt this completion.
+        Length of keyword characters before a cursor, which are needed to
+        attempt ruby omni-completion for methods. If negative value, this
+        completion will be never attempted.
 
                                        *g:acp_behaviorRubyOmniSymbolLength*  >
   let g:acp_behaviorRubyOmniSymbolLength = 1
 <
-        Length of keyword characters before the cursor, which are needed to
-        attempt the ruby omni-completion for symbols. If negative value, it
-        will never attempt this completion.
+        Length of keyword characters before a cursor, which are needed to
+        attempt ruby omni-completion for symbols. If negative value, this
+        completion will be never attempted.
 
                                            *g:acp_behaviorPythonOmniLength*  >
   let g:acp_behaviorPythonOmniLength = 0
 <
-        Length of keyword characters before the cursor, which are needed to
-        attempt the python omni-completion. If negative value, it will never
-        attempt this completion.
+        Length of keyword characters before a cursor, which are needed to
+        attempt python omni-completion. If negative value, this completion
+        will be never attempted.
 
                                              *g:acp_behaviorHtmlOmniLength*  >
   let g:acp_behaviorHtmlOmniLength = 0
 <
-        Length of keyword characters before the cursor, which are needed to
-        attempt the HTML omni-completion. If negative value, it will never
-        attempt this completion.
+        Length of keyword characters before a cursor, which are needed to
+        attempt HTML omni-completion. If negative value, this completion will
+        be never attempted.
 
                                       *g:acp_behaviorCssOmniPropertyLength*  >
   let g:acp_behaviorCssOmniPropertyLength = 1
 <
-        Length of keyword characters before the cursor, which are needed to
-        attempt the CSS omni-completion for properties. If negative value, it
-        will never attempt this completion.
+        Length of keyword characters before a cursor, which are needed to
+        attempt CSS omni-completion for properties. If negative value, this
+        completion will be never attempted.
 
                                          *g:acp_behaviorCssOmniValueLength*  >
   let g:acp_behaviorCssOmniValueLength = 0
 <
-        Length of keyword characters before the cursor, which are needed to
-        attempt the CSS omni-completion for values. If negative value, it will
-        never attempt this completion.
+        Length of keyword characters before a cursor, which are needed to
+        attempt CSS omni-completion for values. If negative value, this
+        completion will be never attempted.
 
                                                            *g:acp_behavior*  >
   let g:acp_behavior = {}
@@ -197,9 +211,9 @@ OPTIONS                                                          *acp-options*
           'completefunc' will be set to this user-provided function during the
           completion. Only makes sense when "command" is "<C-x><C-u>".
 
-        "pattern", "excluded":
-          If a text before the cursor matches "pattern" and not "excluded",
-          popup menu is opened.
+        "pattern", "exclude":
+          If a text before a cursor matches "pattern" and not "exclude", popup
+          menu is opened.
 
         "repeat":
           If non-zero, the last completion is automatically repeated.
@@ -214,6 +228,12 @@ SPECIAL THANKS                                                    *acp-thanks*
 
 ==============================================================================
 CHANGELOG                                                      *acp-changelog*
+
+2.8
+  - Added g:acp_behaviorUserDefinedFunction option and
+    g:acp_behaviorUserDefinedPattern option for users who want to make custom
+    completion auto-popup.
+  - Fixed a bug that setting 'spell' on a new buffer made typing go crazy.
 
 2.7
   - Changed naming conventions for filenames, functions, commands, and options 
