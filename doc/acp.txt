@@ -229,6 +229,10 @@ SPECIAL THANKS                                                    *acp-thanks*
 ==============================================================================
 CHANGELOG                                                      *acp-changelog*
 
+2.8.1
+  - Fixed a bug which inserted a selected match to the next line when
+    auto-wrapping (enabled with 'formatoptions') was performed.
+
 2.8
   - Added g:acp_behaviorUserDefinedFunction option and
     g:acp_behaviorUserDefinedPattern option for users who want to make custom
