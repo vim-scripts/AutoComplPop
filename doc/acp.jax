@@ -56,6 +56,7 @@ ZIPファイルをランタイムディレクトリに展開します。
                                     + 0文字以上のファイル名文字
         オムニ補完      ruby        ".", "::" or 単語を構成する文字以外 + ":"
         オムニ補完      python      "."
+        オムニ補完      xml         "<", "</" or ("<" + ">"以外の文字列 + " ")
         オムニ補完      html/xhtml  "<", "</" or ("<" + ">"以外の文字列 + " ")
         オムニ補完      css         (":", ";", "{", "^", "@", or "!")
                                     + 0個または1個のスペース
@@ -130,7 +131,7 @@ ZIPファイルをランタイムディレクトリに展開します。
         ーン。
 
                                              *g:acp_behaviorKeywordCommand*  >
-  let g:acp_behaviorKeywordCommand = "\<C-p>"
+  let g:acp_behaviorKeywordCommand = "\<C-n>"
 <
         キーワード補完のコマンド。このオプションには普通 "\<C-n>" か "\<C-p>"
         を設定します。
@@ -164,6 +165,12 @@ ZIPファイルをランタイムディレクトリに展開します。
 <
         Python オムニ補完の自動ポップアップを行うのに必要なカーソルの直前のキ
         ーワード文字数。負数ならこの補完は行いません。
+
+                                              *g:acp_behaviorXmlOmniLength*  >
+  let g:acp_behaviorXmlOmniLength = 0
+<
+        XML オムニ補完の自動ポップアップを行うのに必要なカーソルの直前のキーワ
+        ード文字数。負数ならこの補完は行いません。
 
                                              *g:acp_behaviorHtmlOmniLength*  >
   let g:acp_behaviorHtmlOmniLength = 0

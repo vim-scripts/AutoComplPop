@@ -58,6 +58,7 @@ default behavior is as follows:
         Omni      ruby        ".", "::" or non-word character + ":"
                               (|+ruby| required.)
         Omni      python      "." (|+python| required.)
+        Omni      xml         "<", "</" or ("<" + non-">" characters + " ")
         Omni      html/xhtml  "<", "</" or ("<" + non-">" characters + " ")
         Omni      css         (":", ";", "{", "^", "@", or "!")
                               + 0 or 1 space
@@ -134,7 +135,7 @@ OPTIONS                                                          *acp-options*
         completion.
 
                                              *g:acp_behaviorKeywordCommand*  >
-  let g:acp_behaviorKeywordCommand = "\<C-p>"
+  let g:acp_behaviorKeywordCommand = "\<C-n>"
 <
         Command for keyword completion. This option is usually set "\<C-n>" or
         "\<C-p>".
@@ -173,6 +174,13 @@ OPTIONS                                                          *acp-options*
         Length of keyword characters before a cursor, which are needed to
         attempt python omni-completion. If negative value, this completion
         will be never attempted.
+
+                                              *g:acp_behaviorXmlOmniLength*  >
+  let g:acp_behaviorXmlOmniLength = 0
+<
+        Length of keyword characters before a cursor, which are needed to
+        attempt XML omni-completion. If negative value, this completion will
+        be never attempted.
 
                                              *g:acp_behaviorHtmlOmniLength*  >
   let g:acp_behaviorHtmlOmniLength = 0
@@ -228,6 +236,13 @@ SPECIAL THANKS                                                    *acp-thanks*
 
 ==============================================================================
 CHANGELOG                                                      *acp-changelog*
+
+2.9
+  - Changed default behavior to support XML omni completion.
+  - Changed default value of g:acp_behaviorKeywordCommand option.
+    The option with "\<C-p>" cause a problem which inserts a match without
+    <CR> when 'dictionary' has been set and keyword completion is done.
+  - Changed to show error message when incompatible with a installed vim.
 
 2.8.1
   - Fixed a bug which inserted a selected match to the next line when
