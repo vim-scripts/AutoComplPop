@@ -237,6 +237,14 @@ SPECIAL THANKS                                                    *acp-thanks*
 ==============================================================================
 CHANGELOG                                                      *acp-changelog*
 
+2.10
+  - Improved the response by changing not to attempt any completion when
+    keyword characters are entered after a word which has been found that it
+    has no completion candidate at the last attempt of completions.
+  - Improved the response by changing to close popup menu when <BS> was
+    pressed and the text before the cursor would not match with the pattern of
+    current behavior.
+
 2.9
   - Changed default behavior to support XML omni completion.
   - Changed default value of g:acp_behaviorKeywordCommand option.

@@ -19,7 +19,7 @@ function acp#enable()
 
   augroup AcpGlobalAutoCommand
     autocmd!
-    autocmd InsertEnter * unlet! s:posLast
+    autocmd InsertEnter * unlet! s:posLast s:lastUncompletableWord
     autocmd InsertLeave * call s:finishPopup(1)
   augroup END
 
@@ -62,6 +62,8 @@ endfunction
 "
 function acp#onPopupPost()
   if pumvisible()
+    inoremap <silent> <expr> <C-h> acp#onBs()
+    inoremap <silent> <expr> <BS>  acp#onBs()
     " a command to restore to original text and select the first match
     return (s:behavsCurrent[0].command =~# "\<C-p>" ? "\<C-n>\<Up>"
           \                                         : "\<C-p>\<Down>")
@@ -71,9 +73,31 @@ function acp#onPopupPost()
     return printf("\<C-e>%s\<C-r>=acp#onPopupPost()\<CR>",
           \       s:behavsCurrent[0].command)
   else
+    let s:lastUncompletableWord = s:getCurrentWord()
     call s:finishPopup(0)
     return "\<C-e>"
   endif
+endfunction
+
+"
+function s:getCurrentWord()
+  return matchstr(s:getCurrentText(), '\k*$')
+endfunction
+
+"
+function s:getCurrentText()
+  return strpart(getline('.'), 0, col('.') - 1)
+endfunction
+
+"
+function acp#onBs()
+  " using "matchstr" and not "strpart" in order to handle multi-byte
+  " characters
+  if s:matchesBehavior(matchstr(s:getCurrentText(), '.*\ze.'),
+        \              s:behavsCurrent[0])
+    return "\<BS>"
+  endif
+  return "\<C-e>\<BS>"
 endfunction
 
 " }}}1
@@ -161,8 +185,14 @@ function s:feedPopup()
   else
     let s:behavsCurrent = []
   endif
-  let text = strpart(getline('.'), 0, col('.') - 1)
-  call filter(s:behavsCurrent, 's:matchesBehavior(text, v:val)')
+  if exists('s:lastUncompletableWord') &&
+        \ stridx(s:getCurrentWord(), s:lastUncompletableWord) == 0
+    let s:behavsCurrent = []
+  else
+    unlet! s:lastUncompletableWord
+    let text = s:getCurrentText()
+    call filter(s:behavsCurrent, 's:matchesBehavior(text, v:val)')
+  endif
   if empty(s:behavsCurrent)
     call s:finishPopup(1)
     return ''
@@ -188,6 +218,8 @@ endfunction
 
 "
 function s:finishPopup(fGroup1)
+  inoremap <C-h> <Nop> | iunmap <C-h>
+  inoremap <BS>  <Nop> | iunmap <BS>
   let s:behavsCurrent = []
   call s:restoreTempOptions(s:GROUP0)
   if a:fGroup1
