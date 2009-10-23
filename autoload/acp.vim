@@ -60,6 +60,32 @@ function acp#unlock()
 endfunction
 
 "
+function acp#completeSnipmate(findstart, base)
+  if a:findstart
+    return len(matchstr(s:getCurrentText(), '.*\U'))
+  endif
+  let lenBase = len(a:base)
+  let items = filter(GetSnipsInCurrentScope(),
+        \            'strpart(v:key, 0, lenBase) ==? a:base')
+  return map(items(items), 's:makeSnipmateItem(v:val[0], v:val[1])')
+endfunction
+
+"
+function acp#onPopupCloseSnipmate()
+  let text = s:getCurrentText()
+  let lenText = len(text)
+  for trigger in keys(GetSnipsInCurrentScope())
+    let lenTrigger = len(trigger)
+    if lenText >= lenTrigger && strridx(text, trigger) + lenTrigger == lenText
+      let g:i = text . '|' . trigger
+      call feedkeys("\<C-l>", "m")
+      return 0
+    endif
+  endfor
+  return 1
+endfunction
+
+"
 function acp#onPopupPost()
   if pumvisible()
     inoremap <silent> <expr> <C-h> acp#onBs()
@@ -77,16 +103,6 @@ function acp#onPopupPost()
     call s:finishPopup(0)
     return "\<C-e>"
   endif
-endfunction
-
-"
-function s:getCurrentWord()
-  return matchstr(s:getCurrentText(), '\k*$')
-endfunction
-
-"
-function s:getCurrentText()
-  return strpart(getline('.'), 0, col('.') - 1)
 endfunction
 
 "
@@ -147,6 +163,16 @@ function s:restoreTempOptions(group)
 endfunction
 
 "
+function s:getCurrentWord()
+  return matchstr(s:getCurrentText(), '\k*$')
+endfunction
+
+"
+function s:getCurrentText()
+  return strpart(getline('.'), 0, col('.') - 1)
+endfunction
+
+"
 function s:matchesBehavior(text, behav)
   return a:text =~ a:behav.pattern &&
         \ (!exists('a:behav.exclude') || a:text !~ a:behav.exclude)
@@ -174,6 +200,12 @@ function s:feedPopup()
   "       it will be triggered when popup menu is disappeared.
   if s:lockCount > 0 || pumvisible() || &paste
     return ''
+  endif
+  if exists('s:behavsCurrent[0].onPopupClose')
+    if !function(s:behavsCurrent[0].onPopupClose)()
+      call s:finishPopup(1)
+      return ''
+    endif
   endif
   let cursorMoved = s:isCursorMovedSinceLastCall()
   if exists('s:behavsCurrent[0].repeat') && s:behavsCurrent[0].repeat
@@ -232,6 +264,19 @@ function s:setCompletefunc()
   if exists('s:behavsCurrent[0].completefunc')
     call s:setTempOption(0, 'completefunc', s:behavsCurrent[0].completefunc)
   endif
+endfunction
+
+"
+function s:makeSnipmateItem(key, snip)
+  if type(a:snip) == type([])
+    let snipFormatted = '[multi snip]'
+  else
+    let snipFormatted = strpart(substitute(a:snip, "\n", '    ', 'g'), 0, 80)
+  endif
+  return  {
+        \   'word': a:key,
+        \   'menu': snipFormatted,
+        \ }
 endfunction
 
 " }}}1

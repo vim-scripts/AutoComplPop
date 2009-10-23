@@ -47,6 +47,18 @@ function s:makeDefaultBehavior()
     endfor
   endif
   "---------------------------------------------------------------------------
+  if g:acp_behaviorSnipmateLength >= 0
+    for key in keys(behavs)
+      call add(behavs[key], {
+            \   'command'      : "\<C-x>\<C-u>",
+            \   'completefunc' : 'acp#completeSnipmate',
+            \   'pattern'      : printf('\(^\|\s\|\<\)\u\{%d,}$', g:acp_behaviorSnipmateLength),
+            \   'repeat'       : 0,
+            \   'onPopupClose' : 'acp#onPopupCloseSnipmate'
+            \ })
+    endfor
+  endif
+  "---------------------------------------------------------------------------
   if g:acp_behaviorKeywordLength >= 0
     for key in keys(behavs)
       call add(behavs[key], {
@@ -149,6 +161,7 @@ call s:defineOption('g:acp_completeOption', '.,w,b,k')
 call s:defineOption('g:acp_completeoptPreview', 0)
 call s:defineOption('g:acp_behaviorUserDefinedFunction', '')
 call s:defineOption('g:acp_behaviorUserDefinedPattern' , '\k$')
+call s:defineOption('g:acp_behaviorSnipmateLength', -1)
 call s:defineOption('g:acp_behaviorKeywordCommand', "\<C-n>")
 call s:defineOption('g:acp_behaviorKeywordLength', 2)
 call s:defineOption('g:acp_behaviorFileLength', 0)

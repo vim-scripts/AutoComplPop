@@ -45,8 +45,7 @@ And then update your help tags files to enable fuzzyfinder help. See
 ==============================================================================
 USAGE                                                              *acp-usage*
 
-If this plugin has been installed, auto-popup is enabled at startup by
-default.
+Once this plugin is installed, auto-popup is enabled at startup by default.
 
 Which completion method is used depends on the text before the cursor. The
 default behavior is as follows:
@@ -63,8 +62,35 @@ default behavior is as follows:
         Omni      css         (":", ";", "{", "^", "@", or "!")
                               + 0 or 1 space
 
-This behavior is customizable.
+Also, you can make user-defined completion and snipMate's trigger completion
+(|acp-snipMate|) auto-popup if the options are set.
 
+These behavior are customizable.
+
+                                                                *acp-snipMate*
+snipMate's Trigger Completion ~
+
+snipMate's trigger completion enables you to complete a snippet trigger
+provided by snipMate plugin
+(http://www.vim.org/scripts/script.php?script_id=2540) and expand it.
+
+
+To enable auto-popup for this completion, add following function to
+plugin/snipMate.vim:
+>
+  fun! GetSnipsInCurrentScope()
+    let snips = {}
+    for scope in [bufnr('%')] + split(&ft, '\.') + ['_']
+      call extend(snips, get(s:snippets, scope, {}), 'keep')
+      call extend(snips, get(s:multi_snips, scope, {}), 'keep')
+    endfor
+    return snips
+  endf
+<
+And set |g:acp_behaviorSnipmateLength| option to 1.
+
+There is the restriction on this auto-popup, that the text before cursor must
+consist only of uppercase characters.
 
 ==============================================================================
 COMMANDS                                                        *acp-commands*
@@ -120,7 +146,7 @@ OPTIONS                                                          *acp-options*
 <
         If non-zero, "preview" is added to 'completeopt' when auto-popup.
 
-                                             *g:acp_behaviorUserDefinedFunction*  >
+                                        *g:acp_behaviorUserDefinedFunction*  >
   let g:acp_behaviorUserDefinedFunction = ''
 <
         Function for user-defined completion. If empty, this completion will
@@ -128,10 +154,16 @@ OPTIONS                                                          *acp-options*
 
         See also:|complete-functions|
 
-                                             *g:acp_behaviorUserDefinedPattern*  >
+                                         *g:acp_behaviorUserDefinedPattern*  >
   let g:acp_behaviorUserDefinedPattern = '\k$'
 <
         Pattern before a cursor, which are needed to attempt user-defined
+        completion.
+
+                                             *g:acp_behaviorSnipmateLength*  >
+  let g:acp_behaviorSnipmateLength = -1
+<
+        Pattern before a cursor, which are needed to attempt snipMate-trigger
         completion.
 
                                              *g:acp_behaviorKeywordCommand*  >
@@ -236,6 +268,9 @@ SPECIAL THANKS                                                    *acp-thanks*
 
 ==============================================================================
 CHANGELOG                                                      *acp-changelog*
+
+2.11
+  - Implemented experimental feature which is snipMate's trigger completion.
 
 2.10
   - Improved the response by changing not to attempt any completion when
