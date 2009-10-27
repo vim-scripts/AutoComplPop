@@ -78,7 +78,7 @@ function acp#onPopupCloseSnipmate()
     let lenTrigger = len(trigger)
     if lenText >= lenTrigger && strridx(text, trigger) + lenTrigger == lenText
       let g:i = text . '|' . trigger
-      call feedkeys("\<C-l>", "m")
+      call feedkeys("\<C-r>=TriggerSnippet()\<CR>", "n")
       return 0
     endif
   endfor
@@ -271,7 +271,7 @@ function s:makeSnipmateItem(key, snip)
   if type(a:snip) == type([])
     let snipFormatted = '[multi snip]'
   else
-    let snipFormatted = strpart(substitute(a:snip, "\n", '    ', 'g'), 0, 80)
+    let snipFormatted = strpart(substitute(a:snip, '\(\n\|\s\)\+', ' ', 'g'), 0, 80)
   endif
   return  {
         \   'word': a:key,

@@ -89,7 +89,7 @@ plugin/snipMate.vim:
 <
 And set |g:acp_behaviorSnipmateLength| option to 1.
 
-There is the restriction on this auto-popup, that the text before cursor must
+There is the restriction on this auto-popup, that the word before cursor must
 consist only of uppercase characters.
 
 ==============================================================================
@@ -268,6 +268,10 @@ SPECIAL THANKS                                                    *acp-thanks*
 
 ==============================================================================
 CHANGELOG                                                      *acp-changelog*
+
+2.11.1
+  - Fixed a bug that a snipMate's trigger could not be expanded when it was
+    completed.
 
 2.11
   - Implemented experimental feature which is snipMate's trigger completion.
