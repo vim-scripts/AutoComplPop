@@ -36,115 +36,79 @@ function s:makeDefaultBehavior()
         \   'css'    : [],
         \ }
   "---------------------------------------------------------------------------
-  if !empty(g:acp_behaviorUserDefinedFunction)
+  if !empty(g:acp_behaviorUserDefinedFunction) &&
+        \ !empty(g:acp_behaviorUserDefinedMeets)
     for key in keys(behavs)
       call add(behavs[key], {
             \   'command'      : "\<C-x>\<C-u>",
             \   'completefunc' : g:acp_behaviorUserDefinedFunction,
-            \   'pattern'      : g:acp_behaviorUserDefinedPattern,
+            \   'meets'        : g:acp_behaviorUserDefinedMeets,
             \   'repeat'       : 0,
             \ })
     endfor
   endif
   "---------------------------------------------------------------------------
-  if g:acp_behaviorSnipmateLength >= 0
-    for key in keys(behavs)
-      call add(behavs[key], {
-            \   'command'      : "\<C-x>\<C-u>",
-            \   'completefunc' : 'acp#completeSnipmate',
-            \   'pattern'      : printf('\(^\|\s\|\<\)\u\{%d,}$', g:acp_behaviorSnipmateLength),
-            \   'repeat'       : 0,
-            \   'onPopupClose' : 'acp#onPopupCloseSnipmate'
-            \ })
-    endfor
-  endif
+  for key in keys(behavs)
+    call add(behavs[key], {
+          \   'command'      : "\<C-x>\<C-u>",
+          \   'completefunc' : 'acp#completeSnipmate',
+          \   'meets'        : 'acp#meetsForSnipmate',
+          \   'onPopupClose' : 'acp#onPopupCloseSnipmate',
+          \   'repeat'       : 0,
+          \ })
+  endfor
   "---------------------------------------------------------------------------
-  if g:acp_behaviorKeywordLength >= 0
-    for key in keys(behavs)
-      call add(behavs[key], {
-            \   'command' : g:acp_behaviorKeywordCommand,
-            \   'pattern' : printf('\k\{%d,}$', g:acp_behaviorKeywordLength),
-            \   'repeat'  : 0,
-            \ })
-    endfor
-  endif
-  "---------------------------------------------------------------------------
-  if g:acp_behaviorFileLength >= 0
-    for key in keys(behavs)
-      call add(behavs[key], {
-            \   'command' : "\<C-x>\<C-f>",
-            \   'pattern' : printf('\f[%s]\f\{%d,}$', (has('win32') || has('win64') ? '/\\' : '/'),
-            \                      g:acp_behaviorFileLength),
-            \   'exclude' : '[*/\\][/\\]\f*$\|[^[:print:]]\f*$',
-            \   'repeat'  : 1,
-            \ })
-    endfor
-  endif
-  "---------------------------------------------------------------------------
-  if has('ruby') && g:acp_behaviorRubyOmniMethodLength >= 0
-    call add(behavs.ruby, {
-          \   'command' : "\<C-x>\<C-o>",
-          \   'pattern' : printf('[^. \t]\(\.\|::\)\k\{%d,}$',
-          \                      g:acp_behaviorRubyOmniMethodLength),
+  for key in keys(behavs)
+    call add(behavs[key], {
+          \   'command' : g:acp_behaviorKeywordCommand,
+          \   'meets'   : 'acp#meetsForKeyword',
           \   'repeat'  : 0,
           \ })
-  endif
+  endfor
   "---------------------------------------------------------------------------
-  if has('ruby') && g:acp_behaviorRubyOmniSymbolLength >= 0
-    call add(behavs.ruby, {
-          \   'command' : "\<C-x>\<C-o>",
-          \   'pattern' : printf('\(^\|[^:]\):\k\{%d,}$',
-          \                      g:acp_behaviorRubyOmniSymbolLength),
-          \   'repeat'  : 0,
-          \ })
-  endif
-  "---------------------------------------------------------------------------
-  if has('python') && g:acp_behaviorPythonOmniLength >= 0
-    call add(behavs.python, {
-          \   'command' : "\<C-x>\<C-o>",
-          \   'pattern' : printf('\k\.\k\{%d,}$',
-          \                      g:acp_behaviorPythonOmniLength),
-          \   'repeat'  : 0,
-          \ })
-  endif
-  "---------------------------------------------------------------------------
-  if g:acp_behaviorXmlOmniLength >= 0
-    call add(behavs.xml, {
-          \   'command' : "\<C-x>\<C-o>",
-          \   'pattern' : printf('\(<\|<\/\|<[^>]\+ \|<[^>]\+=\"\)\k\{%d,}$',
-          \                      g:acp_behaviorXmlOmniLength),
-          \   'repeat'  : 0,
-          \ })
-  endif
-  "---------------------------------------------------------------------------
-  if g:acp_behaviorHtmlOmniLength >= 0
-    let behavHtml = {
-          \   'command' : "\<C-x>\<C-o>",
-          \   'pattern' : printf('\(<\|<\/\|<[^>]\+ \|<[^>]\+=\"\)\k\{%d,}$',
-          \                      g:acp_behaviorHtmlOmniLength),
+  for key in keys(behavs)
+    call add(behavs[key], {
+          \   'command' : "\<C-x>\<C-f>",
+          \   'meets'   : 'acp#meetsForFile',
           \   'repeat'  : 1,
-          \ }
-    call add(behavs.html , behavHtml)
-    call add(behavs.xhtml, behavHtml)
-  endif
-  "---------------------------------------------------------------------------
-  if g:acp_behaviorCssOmniPropertyLength >= 0
-    call add(behavs.css, {
-          \   'command' : "\<C-x>\<C-o>",
-          \   'pattern' : printf('\(^\s\|[;{]\)\s*\k\{%d,}$',
-          \                      g:acp_behaviorCssOmniPropertyLength),
-          \   'repeat'  : 0,
           \ })
-  endif
+  endfor
   "---------------------------------------------------------------------------
-  if g:acp_behaviorCssOmniValueLength >= 0
-    call add(behavs.css, {
-          \   'command' : "\<C-x>\<C-o>",
-          \   'pattern' : printf('[:@!]\s*\k\{%d,}$',
-          \                      g:acp_behaviorCssOmniValueLength),
-          \   'repeat'  : 0,
-          \ })
-  endif
+  call add(behavs.ruby, {
+        \   'command' : "\<C-x>\<C-o>",
+        \   'meets'   : 'acp#meetsForRubyOmni',
+        \   'repeat'  : 0,
+        \ })
+  "---------------------------------------------------------------------------
+  call add(behavs.python, {
+        \   'command' : "\<C-x>\<C-o>",
+        \   'meets'   : 'acp#meetsForPythonOmni',
+        \   'repeat'  : 0,
+        \ })
+  "---------------------------------------------------------------------------
+  call add(behavs.xml, {
+        \   'command' : "\<C-x>\<C-o>",
+        \   'meets'   : 'acp#meetsForXmlOmni',
+        \   'repeat'  : 1,
+        \ })
+  "---------------------------------------------------------------------------
+  call add(behavs.html, {
+        \   'command' : "\<C-x>\<C-o>",
+        \   'meets'   : 'acp#meetsForHtmlOmni',
+        \   'repeat'  : 1,
+        \ })
+  "---------------------------------------------------------------------------
+  call add(behavs.xhtml, {
+        \   'command' : "\<C-x>\<C-o>",
+        \   'meets'   : 'acp#meetsForHtmlOmni',
+        \   'repeat'  : 1,
+        \ })
+  "---------------------------------------------------------------------------
+  call add(behavs.css, {
+        \   'command' : "\<C-x>\<C-o>",
+        \   'meets'   : 'acp#meetsForCssOmni',
+        \   'repeat'  : 0,
+        \ })
   "---------------------------------------------------------------------------
   return behavs
 endfunction
@@ -160,10 +124,11 @@ call s:defineOption('g:acp_ignorecaseOption', 1)
 call s:defineOption('g:acp_completeOption', '.,w,b,k')
 call s:defineOption('g:acp_completeoptPreview', 0)
 call s:defineOption('g:acp_behaviorUserDefinedFunction', '')
-call s:defineOption('g:acp_behaviorUserDefinedPattern' , '\k$')
+call s:defineOption('g:acp_behaviorUserDefinedMeets', '')
 call s:defineOption('g:acp_behaviorSnipmateLength', -1)
 call s:defineOption('g:acp_behaviorKeywordCommand', "\<C-n>")
 call s:defineOption('g:acp_behaviorKeywordLength', 2)
+call s:defineOption('g:acp_behaviorKeywordIgnores', [])
 call s:defineOption('g:acp_behaviorFileLength', 0)
 call s:defineOption('g:acp_behaviorRubyOmniMethodLength', 0)
 call s:defineOption('g:acp_behaviorRubyOmniSymbolLength', 1)

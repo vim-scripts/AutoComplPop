@@ -19,7 +19,7 @@ function acp#enable()
 
   augroup AcpGlobalAutoCommand
     autocmd!
-    autocmd InsertEnter * unlet! s:posLast s:lastUncompletableWord
+    autocmd InsertEnter * unlet! s:posLast s:lastUncompletable
     autocmd InsertLeave * call s:finishPopup(1)
   augroup END
 
@@ -60,6 +60,100 @@ function acp#unlock()
 endfunction
 
 "
+function acp#meetsForSnipmate(context)
+  if g:acp_behaviorSnipmateLength < 0
+    return 0
+  endif
+  let matches = matchlist(a:context, '\(^\|\s\|\<\)\(\u\{' .
+        \                            g:acp_behaviorSnipmateLength . ',}\)$')
+  return !empty(matches) && !empty(s:getMatchingSnipItems(matches[2]))
+endfunction
+
+"
+function acp#meetsForKeyword(context)
+  if g:acp_behaviorKeywordLength < 0
+    return 0
+  endif
+  let matches = matchlist(a:context, '\(\k\{' . g:acp_behaviorKeywordLength . ',}\)$')
+  if empty(matches)
+    return 0
+  endif
+  for ignore in g:acp_behaviorKeywordIgnores
+    if stridx(ignore, matches[1]) == 0
+      return 0
+    endif
+  endfor
+  return 1
+endfunction
+
+"
+function acp#meetsForFile(context)
+  if g:acp_behaviorFileLength < 0
+    return 0
+  endif
+  if has('win32') || has('win64')
+    let separator = '[/\\]'
+  else
+    let separator = '\/'
+  endif
+  if a:context !~ '\f' . separator . '\f\{' . g:acp_behaviorFileLength . ',}$'
+    return 0
+  endif
+  return a:context !~ '[*/\\][/\\]\f*$\|[^[:print:]]\f*$'
+endfunction
+
+"
+function acp#meetsForRubyOmni(context)
+  if !has('ruby')
+    return 0
+  endif
+  if g:acp_behaviorRubyOmniMethodLength >= 0 &&
+        \ a:context =~ '[^. \t]\(\.\|::\)\k\{' .
+        \              g:acp_behaviorRubyOmniMethodLength . ',}$'
+    return 1
+  endif
+  if g:acp_behaviorRubyOmniSymbolLength >= 0 &&
+        \ a:context =~ '\(^\|[^:]\):\k\{' .
+        \              g:acp_behaviorRubyOmniSymbolLength . ',}$'
+    return 1
+  endif
+  return 0
+endfunction
+
+"
+function acp#meetsForPythonOmni(context)
+  return has('python') &&
+        \ a:context =~ '\k\.\k\{' . g:acp_behaviorPythonOmniLength . ',}$'
+endfunction
+
+"
+function acp#meetsForXmlOmni(context)
+  return a:context =~ '\(<\|<\/\|<[^>]\+ \|<[^>]\+=\"\)\k\{' .
+        \             g:acp_behaviorXmlOmniLength . ',}$'
+endfunction
+
+"
+function acp#meetsForHtmlOmni(context)
+  return a:context =~ '\(<\|<\/\|<[^>]\+ \|<[^>]\+=\"\)\k\{' .
+        \             g:acp_behaviorHtmlOmniLength . ',}$'
+endfunction
+
+"
+function acp#meetsForCssOmni(context)
+  if g:acp_behaviorCssOmniPropertyLength >= 0 &&
+        \ a:context =~ '\(^\s\|[;{]\)\s*\k\{' .
+        \              g:acp_behaviorCssOmniPropertyLength . ',}$'
+    return 1
+  endif
+  if g:acp_behaviorCssOmniValueLength >= 0 &&
+        \ a:context =~ '[:@!]\s*\k\{' .
+        \              g:acp_behaviorCssOmniValueLength . ',}$'
+    return 1
+  endif
+  return 0
+endfunction
+
+"
 function acp#completeSnipmate(findstart, base)
   if a:findstart
     return len(matchstr(s:getCurrentText(), '.*\U'))
@@ -77,7 +171,6 @@ function acp#onPopupCloseSnipmate()
   for trigger in keys(GetSnipsInCurrentScope())
     let lenTrigger = len(trigger)
     if lenText >= lenTrigger && strridx(text, trigger) + lenTrigger == lenText
-      let g:i = text . '|' . trigger
       call feedkeys("\<C-r>=TriggerSnippet()\<CR>", "n")
       return 0
     endif
@@ -91,15 +184,19 @@ function acp#onPopupPost()
     inoremap <silent> <expr> <C-h> acp#onBs()
     inoremap <silent> <expr> <BS>  acp#onBs()
     " a command to restore to original text and select the first match
-    return (s:behavsCurrent[0].command =~# "\<C-p>" ? "\<C-n>\<Up>"
-          \                                         : "\<C-p>\<Down>")
-  elseif exists('s:behavsCurrent[1]')
-    call remove(s:behavsCurrent, 0)
+    return (s:behavsCurrent[s:iBehavs].command =~# "\<C-p>" ? "\<C-n>\<Up>"
+          \                                                 : "\<C-p>\<Down>")
+  endif
+  let s:iBehavs += 1
+  if len(s:behavsCurrent) > s:iBehavs 
     call s:setCompletefunc()
     return printf("\<C-e>%s\<C-r>=acp#onPopupPost()\<CR>",
-          \       s:behavsCurrent[0].command)
+          \       s:behavsCurrent[s:iBehavs].command)
   else
-    let s:lastUncompletableWord = s:getCurrentWord()
+    let s:lastUncompletable = {
+          \   'word': s:getCurrentWord(),
+          \   'commands': map(copy(s:behavsCurrent), 'v:val.command')[1:],
+          \ }
     call s:finishPopup(0)
     return "\<C-e>"
   endif
@@ -109,8 +206,8 @@ endfunction
 function acp#onBs()
   " using "matchstr" and not "strpart" in order to handle multi-byte
   " characters
-  if s:matchesBehavior(matchstr(s:getCurrentText(), '.*\ze.'),
-        \              s:behavsCurrent[0])
+  if call(s:behavsCurrent[s:iBehavs].meets,
+        \ [matchstr(s:getCurrentText(), '.*\ze.')])
     return "\<BS>"
   endif
   return "\<C-e>\<BS>"
@@ -173,25 +270,57 @@ function s:getCurrentText()
 endfunction
 
 "
-function s:matchesBehavior(text, behav)
-  return a:text =~ a:behav.pattern &&
-        \ (!exists('a:behav.exclude') || a:text !~ a:behav.exclude)
+function s:getPostText()
+  return strpart(getline('.'), col('.') - 1)
 endfunction
 
 "
-function s:isCursorMovedSinceLastCall()
+function s:isModifiedSinceLastCall()
   if exists('s:posLast')
     let posPrev = s:posLast
+    let nLinesPrev = s:nLinesLast
+    let textPrev = s:textLast
+    let postTextPrev = s:postTextLast
   endif
   let s:posLast = getpos('.')
+  let s:nLinesLast = line('$')
+  let s:textLast = s:getCurrentText()
+  let s:postTextLast = s:getPostText()
   if !exists('posPrev')
     return 1
-  elseif has('multi_byte_ime')
-    return (posPrev[1] != s:posLast[1] || posPrev[2] + 1 == s:posLast[2] ||
-          \ posPrev[2] > s:posLast[2])
-  else
-    return (posPrev != s:posLast)
+  elseif posPrev[1] != s:posLast[1] || nLinesPrev != s:nLinesLast
+    return (posPrev[1] - s:posLast[1] == nLinesPrev - s:nLinesLast)
+  elseif textPrev ==# s:textLast || postTextPrev !=# s:postTextLast
+    return 0
+  elseif has('gui') && has('multi_byte') && !has('win32') && !has('win64')
+    " NOTE: auto-popup causes a strange behavior when XIM is working
+    return empty(s:textLast) || char2nr(matchstr(s:textLast, '.$')) < 0x80
   endif
+  return 1
+endfunction
+
+"
+function s:makeCurrentBehaviorSet(behavsLast, cursorMoved)
+  if exists('behavsLast[s:iBehavs].repeat') && behavsLast[s:iBehavs].repeat
+    let behavs = [ behavsLast[s:iBehavs] ]
+  elseif a:cursorMoved
+    let behavs = copy(exists('g:acp_behavior[&filetype]')
+          \           ? g:acp_behavior[&filetype]
+          \           : g:acp_behavior['*'])
+  else
+    return []
+  endif
+  let text = s:getCurrentText()
+  call filter(behavs, 'call(v:val.meets, [text])')
+  let s:iBehavs = 0
+  if exists('s:lastUncompletable') &&
+        \ stridx(s:getCurrentWord(), s:lastUncompletable.word) == 0 &&
+        \ map(copy(behavs), 'v:val.command') ==# s:lastUncompletable.commands
+    let behavs = []
+  else
+    unlet! s:lastUncompletable
+  endif
+  return behavs
 endfunction
 
 "
@@ -201,30 +330,14 @@ function s:feedPopup()
   if s:lockCount > 0 || pumvisible() || &paste
     return ''
   endif
-  if exists('s:behavsCurrent[0].onPopupClose')
-    if !function(s:behavsCurrent[0].onPopupClose)()
+  if exists('s:behavsCurrent[s:iBehavs].onPopupClose')
+    if !call(s:behavsCurrent[s:iBehavs].onPopupClose, [])
       call s:finishPopup(1)
       return ''
     endif
   endif
-  let cursorMoved = s:isCursorMovedSinceLastCall()
-  if exists('s:behavsCurrent[0].repeat') && s:behavsCurrent[0].repeat
-    let s:behavsCurrent = [ s:behavsCurrent[0] ]
-  elseif cursorMoved
-    let s:behavsCurrent = copy(exists('g:acp_behavior[&filetype]')
-          \                    ? g:acp_behavior[&filetype]
-          \                    : g:acp_behavior['*'])
-  else
-    let s:behavsCurrent = []
-  endif
-  if exists('s:lastUncompletableWord') &&
-        \ stridx(s:getCurrentWord(), s:lastUncompletableWord) == 0
-    let s:behavsCurrent = []
-  else
-    unlet! s:lastUncompletableWord
-    let text = s:getCurrentText()
-    call filter(s:behavsCurrent, 's:matchesBehavior(text, v:val)')
-  endif
+  let s:behavsCurrent = s:makeCurrentBehaviorSet(
+        \ s:behavsCurrent, s:isModifiedSinceLastCall())
   if empty(s:behavsCurrent)
     call s:finishPopup(1)
     return ''
@@ -232,7 +345,7 @@ function s:feedPopup()
   " In case of dividing words by symbols (e.g. "for(int", "ab==cd") while a
   " popup menu is visible, another popup is not available unless input <C-e>
   " or try popup once. So first completion is duplicated.
-  call insert(s:behavsCurrent, s:behavsCurrent[0])
+  call insert(s:behavsCurrent, s:behavsCurrent[s:iBehavs])
   call s:setTempOption(s:GROUP0, 'spell', 0)
   call s:setTempOption(s:GROUP0, 'completeopt', 'menuone' . (g:acp_completeoptPreview ? ',preview' : ''))
   call s:setTempOption(s:GROUP0, 'complete', g:acp_completeOption)
@@ -243,7 +356,8 @@ function s:feedPopup()
   " NOTE: 'textwidth' must be restored after <C-e>.
   call s:setTempOption(s:GROUP1, 'textwidth', 0)
   call s:setCompletefunc()
-  call feedkeys(s:behavsCurrent[0].command, 'n') " use <Plug> for silence instead of <C-r>=
+  " use <Plug> for silence instead of <C-r>=
+  call feedkeys(s:behavsCurrent[s:iBehavs].command, 'n')
   call feedkeys("\<Plug>AcpOnPopupPost", 'm')
   return '' " for <C-r>=
 endfunction
@@ -261,22 +375,34 @@ endfunction
 
 "
 function s:setCompletefunc()
-  if exists('s:behavsCurrent[0].completefunc')
-    call s:setTempOption(0, 'completefunc', s:behavsCurrent[0].completefunc)
+  if exists('s:behavsCurrent[s:iBehavs].completefunc')
+    call s:setTempOption(0, 'completefunc', s:behavsCurrent[s:iBehavs].completefunc)
   endif
 endfunction
 
 "
 function s:makeSnipmateItem(key, snip)
   if type(a:snip) == type([])
-    let snipFormatted = '[multi snip]'
+    let descriptions = map(copy(a:snip), 'v:val[0]')
+    let snipFormatted = '[MULTI] ' . join(descriptions, ', ')
   else
-    let snipFormatted = strpart(substitute(a:snip, '\(\n\|\s\)\+', ' ', 'g'), 0, 80)
+    let snipFormatted = substitute(a:snip, '\(\n\|\s\)\+', ' ', 'g')
   endif
   return  {
         \   'word': a:key,
-        \   'menu': snipFormatted,
+        \   'menu': strpart(snipFormatted, 0, 80),
         \ }
+endfunction
+
+"
+function s:getMatchingSnipItems(base)
+  let key = a:base . "\n"
+  if !exists('s:snipItems[key]')
+    let s:snipItems[key] = items(GetSnipsInCurrentScope())
+    call filter(s:snipItems[key], 'strpart(v:val[0], 0, len(a:base)) ==? a:base')
+    call map(s:snipItems[key], 's:makeSnipmateItem(v:val[0], v:val[1])')
+  endif
+  return s:snipItems[key]
 endfunction
 
 " }}}1
@@ -287,7 +413,9 @@ let s:GROUP0 = 0
 let s:GROUP1 = 1
 let s:lockCount = 0
 let s:behavsCurrent = []
+let s:iBehavs = 0
 let s:tempOptionSet = [{}, {}]
+let s:snipItems = {}
 
 inoremap <silent> <expr> <Plug>AcpOnPopupPost acp#onPopupPost()
 

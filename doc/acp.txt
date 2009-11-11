@@ -50,7 +50,7 @@ Once this plugin is installed, auto-popup is enabled at startup by default.
 Which completion method is used depends on the text before the cursor. The
 default behavior is as follows:
 
-        kind      filetype    text before a cursor ~
+        kind      filetype    text before the cursor ~
         Keyword   *           two keyword characters
         Filename  *           a filename character + a path separator 
                               + 0 or more filename character
@@ -149,22 +149,20 @@ OPTIONS                                                          *acp-options*
                                         *g:acp_behaviorUserDefinedFunction*  >
   let g:acp_behaviorUserDefinedFunction = ''
 <
-        Function for user-defined completion. If empty, this completion will
-        be never attempted.
+        |g:acp_behavior-completefunc| for user-defined completion. If empty,
+        this completion will be never attempted.
 
-        See also:|complete-functions|
-
-                                         *g:acp_behaviorUserDefinedPattern*  >
-  let g:acp_behaviorUserDefinedPattern = '\k$'
+                                           *g:acp_behaviorUserDefinedMeets*  >
+  let g:acp_behaviorUserDefinedMeets = ''
 <
-        Pattern before a cursor, which are needed to attempt user-defined
-        completion.
+        |g:acp_behavior-meets| for user-defined completion. If empty, this
+        completion will be never attempted.
 
                                              *g:acp_behaviorSnipmateLength*  >
   let g:acp_behaviorSnipmateLength = -1
 <
-        Pattern before a cursor, which are needed to attempt snipMate-trigger
-        completion.
+        Pattern before the cursor, which are needed to attempt
+        snipMate-trigger completion.
 
                                              *g:acp_behaviorKeywordCommand*  >
   let g:acp_behaviorKeywordCommand = "\<C-n>"
@@ -175,63 +173,73 @@ OPTIONS                                                          *acp-options*
                                               *g:acp_behaviorKeywordLength*  >
   let g:acp_behaviorKeywordLength = 2
 <
-        Length of keyword characters before a cursor, which are needed to
+        Length of keyword characters before the cursor, which are needed to
         attempt keyword completion. If negative value, this completion will be
         never attempted.
+
+                                             *g:acp_behaviorKeywordIgnores*  >
+  let g:acp_behaviorKeywordIgnores = []
+<
+        List of string. If a word before the cursor matches to the front part
+        of one of them, keyword completion won't be attempted.
+
+        E.g., when there are too many keywords beginning with "get" for the
+        completion and auto-popup by entering "g", "ge", or "get" causes
+        response degradation, set ["get"] to this option and avoid it.
 
                                                  *g:acp_behaviorFileLength*  >
   let g:acp_behaviorFileLength = 0
 <
-        Length of filename characters before a cursor, which are needed to
+        Length of filename characters before the cursor, which are needed to
         attempt filename completion. If negative value, this completion will
         be never attempted.
 
                                        *g:acp_behaviorRubyOmniMethodLength*  >
   let g:acp_behaviorRubyOmniMethodLength = 0
 <
-        Length of keyword characters before a cursor, which are needed to
+        Length of keyword characters before the cursor, which are needed to
         attempt ruby omni-completion for methods. If negative value, this
         completion will be never attempted.
 
                                        *g:acp_behaviorRubyOmniSymbolLength*  >
   let g:acp_behaviorRubyOmniSymbolLength = 1
 <
-        Length of keyword characters before a cursor, which are needed to
+        Length of keyword characters before the cursor, which are needed to
         attempt ruby omni-completion for symbols. If negative value, this
         completion will be never attempted.
 
                                            *g:acp_behaviorPythonOmniLength*  >
   let g:acp_behaviorPythonOmniLength = 0
 <
-        Length of keyword characters before a cursor, which are needed to
+        Length of keyword characters before the cursor, which are needed to
         attempt python omni-completion. If negative value, this completion
         will be never attempted.
 
                                               *g:acp_behaviorXmlOmniLength*  >
   let g:acp_behaviorXmlOmniLength = 0
 <
-        Length of keyword characters before a cursor, which are needed to
+        Length of keyword characters before the cursor, which are needed to
         attempt XML omni-completion. If negative value, this completion will
         be never attempted.
 
                                              *g:acp_behaviorHtmlOmniLength*  >
   let g:acp_behaviorHtmlOmniLength = 0
 <
-        Length of keyword characters before a cursor, which are needed to
+        Length of keyword characters before the cursor, which are needed to
         attempt HTML omni-completion. If negative value, this completion will
         be never attempted.
 
                                       *g:acp_behaviorCssOmniPropertyLength*  >
   let g:acp_behaviorCssOmniPropertyLength = 1
 <
-        Length of keyword characters before a cursor, which are needed to
+        Length of keyword characters before the cursor, which are needed to
         attempt CSS omni-completion for properties. If negative value, this
         completion will be never attempted.
 
                                          *g:acp_behaviorCssOmniValueLength*  >
   let g:acp_behaviorCssOmniValueLength = 0
 <
-        Length of keyword characters before a cursor, which are needed to
+        Length of keyword characters before the cursor, which are needed to
         attempt CSS omni-completion for values. If negative value, this
         completion will be never attempted.
 
@@ -244,18 +252,24 @@ OPTIONS                                                          *acp-options*
         sequence until completion item is found. Each element is a
         |Dictionary| which has following items:
 
-        "command":
+        "command":                                    *g:acp_behavior-command*
           Command to be fed to open popup menu for completions.
 
-        "completefunc":
+        "completefunc":                          *g:acp_behavior-completefunc*
           'completefunc' will be set to this user-provided function during the
           completion. Only makes sense when "command" is "<C-x><C-u>".
 
-        "pattern", "exclude":
-          If a text before a cursor matches "pattern" and not "exclude", popup
-          menu is opened.
+        "meets":                                        *g:acp_behavior-meets*
+          Name of the function which dicides whether or not to attempt this
+          completion. It will be attempted if this function returns non-zero.
+          This function takes a text before the cursor.
 
-        "repeat":
+        "onPopupClose":                          *g:acp_behavior-onPopupClose*
+          Name of the function which is called when popup menu for this
+          completion is closed. Following completions will be suppressed if
+          this function returns zero.
+
+        "repeat":                                      *g:acp_behavior-repeat*
           If non-zero, the last completion is automatically repeated.
 
 
@@ -268,6 +282,18 @@ SPECIAL THANKS                                                    *acp-thanks*
 
 ==============================================================================
 CHANGELOG                                                      *acp-changelog*
+
+2.12
+  - Added g:acp_behaviorKeywordIgnores option.
+  - Added g:acp_behaviorUserDefinedMeets option and removed
+    g:acp_behaviorUserDefinedPattern.
+  - Changed to do auto-popup only when a buffer is modified.
+  - Changed the structure of g:acp_behavior option.
+  - Changed to reflect a change of behavior options (named g:acp_behavior*)
+    any time it is done.
+  - Fixed a bug that completions after omni completions or snipMate's trigger
+    completion were never attempted when no candidate for the former
+    completions was found.
 
 2.11.1
   - Fixed a bug that a snipMate's trigger could not be expanded when it was
