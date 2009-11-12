@@ -280,30 +280,31 @@ function s:isModifiedSinceLastCall()
     let posPrev = s:posLast
     let nLinesPrev = s:nLinesLast
     let textPrev = s:textLast
-    let postTextPrev = s:postTextLast
   endif
   let s:posLast = getpos('.')
   let s:nLinesLast = line('$')
-  let s:textLast = s:getCurrentText()
-  let s:postTextLast = s:getPostText()
+  let s:textLast = getline('.')
   if !exists('posPrev')
     return 1
   elseif posPrev[1] != s:posLast[1] || nLinesPrev != s:nLinesLast
     return (posPrev[1] - s:posLast[1] == nLinesPrev - s:nLinesLast)
-  elseif textPrev ==# s:textLast || postTextPrev !=# s:postTextLast
+  elseif textPrev ==# s:textLast
     return 0
-  elseif has('gui') && has('multi_byte') && !has('win32') && !has('win64')
-    " NOTE: auto-popup causes a strange behavior when XIM is working
-    return empty(s:textLast) || char2nr(matchstr(s:textLast, '.$')) < 0x80
+  elseif posPrev[2] > s:posLast[2]
+    return 1
+  elseif has('gui_running') && has('multi_byte')
+    " NOTE: auto-popup causes a strange behavior when IME/XIM is working
+    return posPrev[2] + 1 == s:posLast[2]
   endif
-  return 1
+  return posPrev[2] != s:posLast[2]
 endfunction
 
 "
-function s:makeCurrentBehaviorSet(behavsLast, cursorMoved)
-  if exists('behavsLast[s:iBehavs].repeat') && behavsLast[s:iBehavs].repeat
-    let behavs = [ behavsLast[s:iBehavs] ]
-  elseif a:cursorMoved
+function s:makeCurrentBehaviorSet()
+  let modified = s:isModifiedSinceLastCall()
+  if exists('s:behavsCurrent[s:iBehavs].repeat') && s:behavsCurrent[s:iBehavs].repeat
+    let behavs = [ s:behavsCurrent[s:iBehavs] ]
+  elseif modified
     let behavs = copy(exists('g:acp_behavior[&filetype]')
           \           ? g:acp_behavior[&filetype]
           \           : g:acp_behavior['*'])
@@ -336,8 +337,7 @@ function s:feedPopup()
       return ''
     endif
   endif
-  let s:behavsCurrent = s:makeCurrentBehaviorSet(
-        \ s:behavsCurrent, s:isModifiedSinceLastCall())
+  let s:behavsCurrent = s:makeCurrentBehaviorSet()
   if empty(s:behavsCurrent)
     call s:finishPopup(1)
     return ''

@@ -283,6 +283,9 @@ SPECIAL THANKS                                                    *acp-thanks*
 ==============================================================================
 CHANGELOG                                                      *acp-changelog*
 
+2.12.1
+  - Changed to avoid a strange behavior with Microsoft IME.
+
 2.12
   - Added g:acp_behaviorKeywordIgnores option.
   - Added g:acp_behaviorUserDefinedMeets option and removed
