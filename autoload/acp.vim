@@ -156,21 +156,20 @@ endfunction
 "
 function acp#completeSnipmate(findstart, base)
   if a:findstart
-    return len(matchstr(s:getCurrentText(), '.*\U'))
+    let s:posSnipmateCompletion = len(matchstr(s:getCurrentText(), '.*\U'))
+    return s:posSnipmateCompletion
   endif
   let lenBase = len(a:base)
   let items = filter(GetSnipsInCurrentScope(),
         \            'strpart(v:key, 0, lenBase) ==? a:base')
-  return map(items(items), 's:makeSnipmateItem(v:val[0], v:val[1])')
+  return map(sort(items(items)), 's:makeSnipmateItem(v:val[0], v:val[1])')
 endfunction
 
 "
 function acp#onPopupCloseSnipmate()
-  let text = s:getCurrentText()
-  let lenText = len(text)
+  let word = s:getCurrentText()[s:posSnipmateCompletion :]
   for trigger in keys(GetSnipsInCurrentScope())
-    let lenTrigger = len(trigger)
-    if lenText >= lenTrigger && strridx(text, trigger) + lenTrigger == lenText
+    if word ==# trigger
       call feedkeys("\<C-r>=TriggerSnippet()\<CR>", "n")
       return 0
     endif

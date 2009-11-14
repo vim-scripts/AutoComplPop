@@ -283,6 +283,11 @@ SPECIAL THANKS                                                    *acp-thanks*
 ==============================================================================
 CHANGELOG                                                      *acp-changelog*
 
+2.13
+  - Changed to sort snipMate's triggers.
+  - Fixed a bug that a wasted character was inserted after snipMate's trigger
+    completion.
+
 2.12.1
   - Changed to avoid a strange behavior with Microsoft IME.
 
