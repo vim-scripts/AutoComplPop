@@ -92,6 +92,16 @@ And set |g:acp_behaviorSnipmateLength| option to 1.
 There is the restriction on this auto-popup, that the word before cursor must
 consist only of uppercase characters.
 
+                                                               *acp-perl-omni*
+Perl Omni-Completion ~
+
+AutoComplPop supports perl-completion.vim
+(http://www.vim.org/scripts/script.php?script_id=2852).
+
+To enable auto-popup for this completion, set |g:acp_behaviorPerlOmniLength|
+option to 0 or more.
+
+
 ==============================================================================
 COMMANDS                                                        *acp-commands*
 
@@ -215,6 +225,15 @@ OPTIONS                                                          *acp-options*
         attempt python omni-completion. If negative value, this completion
         will be never attempted.
 
+                                             *g:acp_behaviorPerlOmniLength*  >
+  let g:acp_behaviorPerlOmniLength = -1
+<
+        Length of keyword characters before the cursor, which are needed to
+        attempt perl omni-completion. If negative value, this completion will
+        be never attempted.
+
+        See also: |acp-perl-omni|
+
                                               *g:acp_behaviorXmlOmniLength*  >
   let g:acp_behaviorXmlOmniLength = 0
 <
@@ -282,6 +301,9 @@ SPECIAL THANKS                                                    *acp-thanks*
 
 ==============================================================================
 CHANGELOG                                                      *acp-changelog*
+
+2.14
+  - Added the support for perl-completion.vim.
 
 2.13
   - Changed to sort snipMate's triggers.

@@ -90,6 +90,16 @@ snipMate トリガー補完では、snipMate プラグイン
 この自動ポップアップには制限があり、カーソル直前の単語は大文字英字だけで構成さ
 れていなければなりません。
 
+                                                               *acp-perl-omni*
+Perl オムニ補完 ~
+
+AutoComplPop は perl-completion.vim
+(http://www.vim.org/scripts/script.php?script_id=2852) をサポートしています。
+
+この自動ポップアップを有効にするには、|g:acp_behaviorPerlOmniLength|オプション
+を 0 以上にしてください。
+
+
 ==============================================================================
 コマンド                                                        *acp-commands*
 
@@ -208,6 +218,14 @@ snipMate トリガー補完では、snipMate プラグイン
 <
         Python オムニ補完の自動ポップアップを行うのに必要なカーソルの直前のキ
         ーワード文字数。負数ならこの補完は行われません。
+
+                                             *g:acp_behaviorPerlOmniLength*  >
+  let g:acp_behaviorPerlOmniLength = -1
+<
+        Perl オムニ補完の自動ポップアップを行うのに必要なカーソルの直前のキー
+        ワード文字数。負数ならこの補完は行われません。
+
+        See also: |acp-perl-omni|
 
                                               *g:acp_behaviorXmlOmniLength*  >
   let g:acp_behaviorXmlOmniLength = 0
