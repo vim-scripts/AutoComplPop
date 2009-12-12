@@ -302,6 +302,11 @@ SPECIAL THANKS                                                    *acp-thanks*
 ==============================================================================
 CHANGELOG                                                      *acp-changelog*
 
+2.14.1
+  - Changed the way of auto-popup for avoiding an issue about filename
+    completion.
+  - Fixed a bug that popup menu was opened twice when auto-popup was done.
+
 2.14
   - Added the support for perl-completion.vim.
 

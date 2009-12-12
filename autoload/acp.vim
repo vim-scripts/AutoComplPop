@@ -187,6 +187,8 @@ endfunction
 
 "
 function acp#onPopupPost()
+  " to clear <C-r>= expression on command-line
+  echo ''
   if pumvisible()
     inoremap <silent> <expr> <C-h> acp#onBs()
     inoremap <silent> <expr> <BS>  acp#onBs()
@@ -311,6 +313,8 @@ function s:makeCurrentBehaviorSet()
   let modified = s:isModifiedSinceLastCall()
   if exists('s:behavsCurrent[s:iBehavs].repeat') && s:behavsCurrent[s:iBehavs].repeat
     let behavs = [ s:behavsCurrent[s:iBehavs] ]
+  elseif exists('s:behavsCurrent[s:iBehavs]')
+    return []
   elseif modified
     let behavs = copy(exists('g:acp_behavior[&filetype]')
           \           ? g:acp_behavior[&filetype]
@@ -363,10 +367,8 @@ function s:feedPopup()
   " NOTE: 'textwidth' must be restored after <C-e>.
   call s:setTempOption(s:GROUP1, 'textwidth', 0)
   call s:setCompletefunc()
-  " use <Plug> for silence instead of <C-r>=
-  call feedkeys(s:behavsCurrent[s:iBehavs].command, 'n')
-  call feedkeys("\<Plug>AcpOnPopupPost", 'm')
-  return '' " for <C-r>=
+  call feedkeys(s:behavsCurrent[s:iBehavs].command . "\<C-r>=acp#onPopupPost()\<CR>", 'n')
+  return '' " this function is called by <C-r>=
 endfunction
 
 "
@@ -423,9 +425,6 @@ let s:behavsCurrent = []
 let s:iBehavs = 0
 let s:tempOptionSet = [{}, {}]
 let s:snipItems = {}
-
-inoremap <silent> <expr> <Plug>AcpOnPopupPost acp#onPopupPost()
-
 
 " }}}1
 "=============================================================================
