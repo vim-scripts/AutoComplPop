@@ -127,6 +127,12 @@ function acp#meetsForPythonOmni(context)
 endfunction
 
 "
+function acp#meetsForJavascriptOmni(context)
+  return g:acp_behaviorJavascriptOmniLength >= 0 &&
+        \ a:context =~ '\k\.\k\{' . g:acp_behaviorJavascriptOmniLength . ',}$'
+endfunction
+
+"
 function acp#meetsForPerlOmni(context)
   return g:acp_behaviorPerlOmniLength >= 0 &&
         \ a:context =~ '\w->\k\{' . g:acp_behaviorPerlOmniLength . ',}$'

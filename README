@@ -1,3 +1,7 @@
+This project is a fork from https://github.com/vim-scripts/AutoComplPop. Added
+Javascript autocompletion support.
+
+=============================================================================
 This is a mirror of http://www.vim.org/scripts/script.php?script_id=1879
 
 Repository:
