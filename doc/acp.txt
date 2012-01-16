@@ -226,7 +226,7 @@ OPTIONS                                                          *acp-options*
         attempt python omni-completion. If negative value, this completion
         will be never attempted.
 
-                                           *g:acp_behaviorPythonOmniLength*  >
+                                           *g:acp_behaviorJavascriptOmniLength*  >
   let g:acp_behaviorJavascriptOmniLength = 0
 <
         Length of keyword characters before the cursor, which are needed to
