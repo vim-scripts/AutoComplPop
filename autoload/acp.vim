@@ -192,9 +192,16 @@ function acp#onPopupPost()
   if pumvisible()
     inoremap <silent> <expr> <C-h> acp#onBs()
     inoremap <silent> <expr> <BS>  acp#onBs()
+    let l:autoselect_up = ""
+    let l:autoselect_down = ""
+    if g:acp_autoselectFirstCompletion
+        let l:autoselect_up = "\<Up>"
+        let l:autoselect_down = "\<Down>"
+    endif
     " a command to restore to original text and select the first match
-    return (s:behavsCurrent[s:iBehavs].command =~# "\<C-p>" ? "\<C-n>\<Up>"
-          \                                                 : "\<C-p>\<Down>")
+    return (s:behavsCurrent[s:iBehavs].command =~# "\<C-p>"
+          \             ? "\<C-n>" . l:autoselect_up
+          \             : "\<C-p>" . l:autoselect_down)
   endif
   let s:iBehavs += 1
   if len(s:behavsCurrent) > s:iBehavs 
