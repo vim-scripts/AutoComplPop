@@ -147,6 +147,13 @@ function acp#meetsForHtmlOmni(context)
 endfunction
 
 "
+function acp#meetsForPhpOmni(context)
+  return g:acp_behaviorPhpOmniLength >= 0 &&
+        \ a:context =~ '\k\{' .
+        \              g:acp_behaviorPhpOmniLength . ',}$'
+endfunction
+
+"
 function acp#meetsForCssOmni(context)
   if g:acp_behaviorCssOmniPropertyLength >= 0 &&
         \ a:context =~ '\(^\s\|[;{]\)\s*\k\{' .
