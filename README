@@ -1,16 +1,16 @@
-This is a mirror of http://www.vim.org/scripts/script.php?script_id=1879
+**This is a mirror of [VimOrg](http://www.vim.org/scripts/script.php?script_id=1879)**
 
-Repository:
+## Repository:
   https://bitbucket.org/ns9tks/vim-autocomplpop/
 
-Issues:
+## Issues:
   http://bitbucket.org/ns9tks/vim-autocomplpop/issues/
 
-Download latest(development) version
+## Download latest(development) version
   https://bitbucket.org/ns9tks/vim-autocomplpop/get/tip.zip
 
 ==============================================================================
-INTRODUCTION                                                *acp-introduction*
+**INTRODUCTION**                                               _*acp-introduction*_
 
 With this plugin, your vim comes to automatically opens popup menu for
 completions when you enter characters or move the cursor in Insert mode. It
@@ -18,7 +18,7 @@ won't prevent you continuing entering characters.
 
 
 ==============================================================================
-INSTALLATION                                                *acp-installation*
+**INSTALLATION**                                                _*acp-installation*_
 
 Put all files into your runtime directory. If you have the zip file, extract
 it to your runtime directory.
@@ -38,7 +38,7 @@ And then update your help tags files to enable fuzzyfinder help. See
 
 
 ==============================================================================
-USAGE                                                              *acp-usage*
+**USAGE**                                                              _*acp-usage*_
 
 Once this plugin is installed, auto-popup is enabled at startup by default.
 
